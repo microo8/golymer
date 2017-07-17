@@ -17,12 +17,14 @@ const testElemTemplate = `
 //TestElem ...
 type TestElem struct {
 	golymer.Element
-	ExportedAttribute   string
-	unexportedAttribute int
+	A string
+	b int
+	C int
 }
 
 //NewTestElem ...
-func NewTestElem() golymer.CustomElement {
+func NewTestElem() *TestElem {
+	println("NewTestElem")
 	elem := &TestElem{}
 	elem.Template = testElemTemplate
 	return elem

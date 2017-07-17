@@ -1,6 +1,7 @@
 package golymer
 
 import (
+	"fmt"
 	"reflect"
 
 	"github.com/gopherjs/gopherjs/js"
@@ -8,8 +9,6 @@ import (
 
 //CustomElement the interface to create the CustomElement
 type CustomElement interface {
-	GetElement() *js.Object
-	SetElement(*js.Object)
 	ConnectedCallback()
 	DisconnectedCallback()
 	AttributeChangedCallback(attributeName, oldValue, newValue, namespace string)
@@ -20,16 +19,6 @@ type CustomElement interface {
 type Element struct {
 	*js.Object
 	Template string
-}
-
-//GetElement ...
-func (e *Element) GetElement() *js.Object {
-	return e.Object
-}
-
-//SetElement ...
-func (e *Element) SetElement(obj *js.Object) {
-	e.Object = obj
 }
 
 //ConnectedCallback ...
@@ -56,24 +45,31 @@ func (e *Element) AdoptedCallback(oldDocument, newDocument interface{}) {
 }
 
 //Define ...
-func Define(name string, f func() CustomElement) {
+func Define(name string, f interface{}) error {
+	//test that it is a function with no attributes and one pointer result
+	if reflect.ValueOf(f).Kind() != reflect.Func {
+		return fmt.Errorf("Define Error: provided f parameter is not a function (it must be func()*YourElemType)")
+	}
+	if reflect.TypeOf(f).NumOut() != 1 {
+		return fmt.Errorf("Define Error: provided function doesn't have one result value (it must be func()*YourElemType)")
+	}
+	if reflect.TypeOf(f).Out(0).Kind() != reflect.Ptr {
+		return fmt.Errorf("Define Error: provided function doesn't return an pointer (it must be func()*YourElemType)")
+	}
+	if elemStruct, ok := reflect.TypeOf(f).Out(0).Elem().FieldByName("Element"); !ok || elemStruct.Type.Name() != "Element" {
+		return fmt.Errorf("Define Error: provided function doesn't return an struct that has embedded golymer.Element struct (it must be func()*YourElemType)")
+	}
+
 	htmlElement := js.Global.Get("HTMLElement")
 	object := js.Global.Get("Object")
 	camelName := kebabToCamelCase(name)
-	var observedAttributes []string
 
 	element := js.MakeFunc(func(this *js.Object, argments []*js.Object) interface{} {
 		instance := js.Global.Get("Reflect").Call("construct", htmlElement, make([]interface{}, 0), js.Global.Get(camelName))
-		customObject := f()
-		customObject.SetElement(instance)
-		customObjectType := reflect.TypeOf(customObject).Elem()
-		for i := 0; i < customObjectType.NumField(); i++ {
-			if field := customObjectType.Field(i); len(field.PkgPath) == 0 {
-				observedAttributes = append(observedAttributes, camelCaseToKebab(field.Name))
-			}
-		}
 
+		customObject := reflect.ValueOf(f).Call(nil)[0].Interface().(CustomElement)
 		customElement := js.MakeWrapper(customObject)
+		customElement.Get("__internal_object__").Get("Element").Set("Object", instance)
 		instance.Set("_customElement", customElement)
 		for _, k := range js.Keys(customElement) {
 			v := customElement.Get(k)
@@ -87,7 +83,21 @@ func Define(name string, f func() CustomElement) {
 	prototype := element.Get("prototype")
 	object.Call("setPrototypeOf", prototype, htmlElement.Get("prototype"))
 	object.Call("setPrototypeOf", element, htmlElement)
-	prototype.Set("observedAttributes", observedAttributes)
+
+	getter := new(js.Object)
+	getter.Set("get", js.MakeFunc(func(this *js.Object, argments []*js.Object) interface{} {
+		var observedAttributes []string
+		customElementType := reflect.TypeOf(f).Out(0).Elem()
+		for i := 0; i < customElementType.NumField(); i++ {
+			field := customElementType.Field(i)
+			if field.PkgPath != "" {
+				continue
+			}
+			observedAttributes = append(observedAttributes, camelCaseToKebab(field.Name))
+		}
+		return observedAttributes
+	}))
+	object.Call("defineProperty", element, "observedAttributes", getter)
 
 	prototype.Set("connectedCallback", js.MakeFunc(func(this *js.Object, argments []*js.Object) interface{} {
 		this.Get("_customElement").Interface().(CustomElement).ConnectedCallback()
@@ -119,4 +129,5 @@ func Define(name string, f func() CustomElement) {
 	}))
 
 	js.Global.Get("customElements").Call("define", name, element)
+	return nil
 }
