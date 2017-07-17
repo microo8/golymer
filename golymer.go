@@ -44,9 +44,8 @@ func (e *Element) AdoptedCallback(oldDocument, newDocument interface{}) {
 	println(e, "AdoptedCallback", oldDocument, newDocument)
 }
 
-//Define ...
-func Define(name string, f interface{}) error {
-	//test that it is a function with no attributes and one pointer result
+//testConstructorFunction tests that it is a function with no attributes and one pointer result
+func testConstructorFunction(f interface{}) error {
 	if reflect.ValueOf(f).Kind() != reflect.Func {
 		return fmt.Errorf("Define Error: provided f parameter is not a function (it must be func()*YourElemType)")
 	}
@@ -58,6 +57,52 @@ func Define(name string, f interface{}) error {
 	}
 	if elemStruct, ok := reflect.TypeOf(f).Out(0).Elem().FieldByName("Element"); !ok || elemStruct.Type.Name() != "Element" {
 		return fmt.Errorf("Define Error: provided function doesn't return an struct that has embedded golymer.Element struct (it must be func()*YourElemType)")
+	}
+	return nil
+}
+
+//getStructFields returns fields of the provided struct
+func getStructFields(customElementType reflect.Type) (customElementFields []reflect.StructField) {
+	for i := 0; i < customElementType.NumField(); i++ {
+		field := customElementType.Field(i)
+		customElementFields = append(customElementFields, field)
+	}
+	return
+}
+
+//setPrototypeCallbacks sets callbacks of CustomElements v1 (connectedCallback, disconnectedCallback, attributeChangedCallback and adoptedCallback)
+func setPrototypeCallbacks(prototype *js.Object) {
+	prototype.Set("connectedCallback", js.MakeFunc(func(this *js.Object, argments []*js.Object) interface{} {
+		this.Get("_customElement").Interface().(CustomElement).ConnectedCallback()
+		return nil
+	}))
+	prototype.Set("disconnectedCallback", js.MakeFunc(func(this *js.Object, argments []*js.Object) interface{} {
+		this.Get("_customElement").Interface().(CustomElement).DisconnectedCallback()
+		return nil
+	}))
+	prototype.Set("attributeChangedCallback", js.MakeFunc(func(this *js.Object, argments []*js.Object) interface{} {
+		this.Get("_customElement").Interface().(CustomElement).AttributeChangedCallback(
+			argments[0].String(),
+			argments[1].String(),
+			argments[2].String(),
+			argments[3].String(),
+		)
+		return nil
+	}))
+	prototype.Set("adoptedCallback", js.MakeFunc(func(this *js.Object, argments []*js.Object) interface{} {
+		this.Get("_customElement").Interface().(CustomElement).AdoptedCallback(
+			argments[0].Interface(),
+			argments[1].Interface(),
+		)
+		return nil
+	}))
+}
+
+//Define ...
+func Define(name string, f interface{}) error {
+	err := testConstructorFunction(f)
+	if err != nil {
+		return err
 	}
 
 	htmlElement := js.Global.Get("HTMLElement")
@@ -71,10 +116,6 @@ func Define(name string, f interface{}) error {
 		customElement := js.MakeWrapper(customObject)
 		customElement.Get("__internal_object__").Get("Element").Set("Object", instance)
 		instance.Set("_customElement", customElement)
-		for _, k := range js.Keys(customElement) {
-			v := customElement.Get(k)
-			instance.Set(k, v)
-		}
 
 		return instance
 	})
@@ -84,12 +125,29 @@ func Define(name string, f interface{}) error {
 	object.Call("setPrototypeOf", prototype, htmlElement.Get("prototype"))
 	object.Call("setPrototypeOf", element, htmlElement)
 
+	customElementFields := getStructFields(reflect.TypeOf(f).Out(0).Elem())
+
+	//getters and setters of the customElement
+	for _, field := range customElementFields {
+		field := field
+		gs := new(js.Object)
+		gs.Set("get", js.MakeFunc(func(this *js.Object, argments []*js.Object) interface{} {
+			return this.Get("_customElement").Get("__internal_object__").Get(field.Name)
+		}))
+		gs.Set("set", js.MakeFunc(func(this *js.Object, argments []*js.Object) interface{} {
+			this.Call("setAttribute", field.Name, argments[0])
+			this.Get("_customElement").Get("__internal_object__").Set(field.Name, argments[0])
+			return argments[0]
+		}))
+		object.Call("defineProperty", prototype, field.Name, gs)
+	}
+
+	//observedAttributes getter
 	getter := new(js.Object)
 	getter.Set("get", js.MakeFunc(func(this *js.Object, argments []*js.Object) interface{} {
 		var observedAttributes []string
-		customElementType := reflect.TypeOf(f).Out(0).Elem()
-		for i := 0; i < customElementType.NumField(); i++ {
-			field := customElementType.Field(i)
+		for _, field := range customElementFields {
+			//if it's an exported attribute, add it to observedAttributes
 			if field.PkgPath != "" {
 				continue
 			}
@@ -99,34 +157,7 @@ func Define(name string, f interface{}) error {
 	}))
 	object.Call("defineProperty", element, "observedAttributes", getter)
 
-	prototype.Set("connectedCallback", js.MakeFunc(func(this *js.Object, argments []*js.Object) interface{} {
-		this.Get("_customElement").Interface().(CustomElement).ConnectedCallback()
-		return nil
-	}))
-	prototype.Set("disconnectedCallback", js.MakeFunc(func(this *js.Object, argments []*js.Object) interface{} {
-		this.Get("_customElement").Interface().(CustomElement).DisconnectedCallback()
-		return nil
-	}))
-	prototype.Set("attributeChangedCallback", js.MakeFunc(func(this *js.Object, argments []*js.Object) interface{} {
-		attributeName := argments[0].String()
-		oldValue := argments[1].String()
-		newValue := argments[2].String()
-		namespace := argments[3].String()
-		this.Get("_customElement").Interface().(CustomElement).AttributeChangedCallback(
-			attributeName,
-			oldValue,
-			newValue,
-			namespace,
-		)
-		return nil
-	}))
-	prototype.Set("adoptedCallback", js.MakeFunc(func(this *js.Object, argments []*js.Object) interface{} {
-		this.Get("_customElement").Interface().(CustomElement).AdoptedCallback(
-			argments[0].Interface(),
-			argments[1].Interface(),
-		)
-		return nil
-	}))
+	setPrototypeCallbacks(prototype)
 
 	js.Global.Get("customElements").Call("define", name, element)
 	return nil

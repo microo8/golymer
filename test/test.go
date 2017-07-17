@@ -31,5 +31,8 @@ func NewTestElem() *TestElem {
 }
 
 func main() {
-	golymer.Define("my-element", NewTestElem)
+	err := golymer.Define("my-element", NewTestElem)
+	if err != nil {
+		panic(err)
+	}
 }
