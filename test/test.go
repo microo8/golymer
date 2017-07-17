@@ -10,28 +10,28 @@ const testElemTemplate = `
 </style>
 
 <h1>
-	<span>TEST</span>
+	<span id="meh">[[A]]</span>
+	<span>[[C]]</span>
 </h1>
 `
 
 //TestElem ...
 type TestElem struct {
 	golymer.Element
-	A string
-	b int
-	C int
+	AttrOne   string
+	AttrTwo   int
+	attrThree int
 }
 
 //NewTestElem ...
 func NewTestElem() *TestElem {
-	println("NewTestElem")
 	elem := &TestElem{}
 	elem.Template = testElemTemplate
 	return elem
 }
 
 func main() {
-	err := golymer.Define("my-element", NewTestElem)
+	err := golymer.Define(NewTestElem)
 	if err != nil {
 		panic(err)
 	}
