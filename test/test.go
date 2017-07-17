@@ -9,9 +9,8 @@ const testElemTemplate = `
 	}
 </style>
 
-<h1>
-	<span id="meh">[[A]]</span>
-	<span>[[C]]</span>
+<h1 height="[[attrThree]]">
+	<span id="meh" style="display: [[Display]];">[[AttrOne]]</span>
 </h1>
 `
 
@@ -21,11 +20,14 @@ type TestElem struct {
 	AttrOne   string
 	AttrTwo   int
 	attrThree int
+	Display   string
 }
 
 //NewTestElem ...
 func NewTestElem() *TestElem {
 	elem := &TestElem{}
+	elem.AttrTwo = 100
+	elem.Display = "block"
 	elem.Template = testElemTemplate
 	return elem
 }

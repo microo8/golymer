@@ -3,12 +3,13 @@ package golymer
 import (
 	"fmt"
 	"reflect"
+	"regexp"
 	"strings"
 
 	"github.com/gopherjs/gopherjs/js"
 )
 
-//ids is a regex for finding id attributes in template
+var oneWayDataBinding = regexp.MustCompile(`\[\[([A-Z][A-Za-z0-9_]*)\]\]`)
 
 //CustomElement the interface to create the CustomElement
 type CustomElement interface {
@@ -18,11 +19,18 @@ type CustomElement interface {
 	AdoptedCallback(oldDocument, newDocument interface{})
 }
 
-//Element ...
+type dataBinding struct {
+	Str       string
+	Attribute *js.Object
+	Fields    []string
+}
+
+//Element wrapper for the HTML element
 type Element struct {
 	*js.Object
-	Template string
-	Children map[string]*js.Object
+	Template     string
+	Children     map[string]*js.Object
+	dataBindings map[string][]*dataBinding
 }
 
 //ConnectedCallback ...
@@ -35,6 +43,9 @@ func (e *Element) ConnectedCallback() {
 	if e.Children == nil {
 		e.Children = make(map[string]*js.Object)
 	}
+	if e.dataBindings == nil {
+		e.dataBindings = make(map[string][]*dataBinding)
+	}
 	e.scanElement(shadowRoot)
 }
 
@@ -45,8 +56,9 @@ func (e *Element) DisconnectedCallback() {
 
 //AttributeChangedCallback ...
 func (e *Element) AttributeChangedCallback(attributeName, oldValue, newValue, namespace string) {
+	println("AttributeChangedCallback", attributeName, oldValue, newValue, namespace)
 	e.Get("_customElement").Get("__internal_object__").Set(strings.Title(kebabToCamelCase(attributeName)), newValue)
-	println(e, "AttributeChangedCallback", attributeName, oldValue, newValue, namespace)
+
 }
 
 //AdoptedCallback ...
@@ -59,11 +71,25 @@ func (e *Element) scanElement(element *js.Object) {
 	if elementAttributes != js.Undefined {
 		for i := 0; i < elementAttributes.Get("length").Int(); i++ {
 			attribute := elementAttributes.Index(i)
+			attributeName := attribute.Get("name").String()
+			attributeValue := attribute.Get("value").String()
 
 			//collect children with id
-			if attribute.Get("name").String() == "id" {
+			if attributeName == "id" {
 				id := attribute.Get("value").String()
 				e.Children[id] = element
+			}
+
+			//check if the attribute's value must be binded to some elements attribute
+			//TODO [[]] could be anywhere in the string + more times
+			var bindedFields []string
+			for _, customElementAttributeName := range oneWayDataBinding.FindAllStringSubmatch(attributeValue, -1) {
+				println(customElementAttributeName[1], attribute)
+				bindedFields = append(bindedFields, customElementAttributeName[1])
+			}
+			for _, bindedField := range bindedFields {
+				e.dataBindings[bindedField] = append(e.dataBindings[bindedField], &dataBinding{Str: attributeValue, Attribute: attribute, Fields: bindedFields})
+				attribute.Set("value", e.Get("_customElement").Get("__internal_object__").Get(bindedField))
 			}
 		}
 	}
@@ -106,27 +132,27 @@ func getStructFields(customElementType reflect.Type) (customElementFields []refl
 
 //setPrototypeCallbacks sets callbacks of CustomElements v1 (connectedCallback, disconnectedCallback, attributeChangedCallback and adoptedCallback)
 func setPrototypeCallbacks(prototype *js.Object) {
-	prototype.Set("connectedCallback", js.MakeFunc(func(this *js.Object, argments []*js.Object) interface{} {
+	prototype.Set("connectedCallback", js.MakeFunc(func(this *js.Object, arguments []*js.Object) interface{} {
 		this.Get("_customElement").Interface().(CustomElement).ConnectedCallback()
 		return nil
 	}))
-	prototype.Set("disconnectedCallback", js.MakeFunc(func(this *js.Object, argments []*js.Object) interface{} {
+	prototype.Set("disconnectedCallback", js.MakeFunc(func(this *js.Object, arguments []*js.Object) interface{} {
 		this.Get("_customElement").Interface().(CustomElement).DisconnectedCallback()
 		return nil
 	}))
-	prototype.Set("attributeChangedCallback", js.MakeFunc(func(this *js.Object, argments []*js.Object) interface{} {
+	prototype.Set("attributeChangedCallback", js.MakeFunc(func(this *js.Object, arguments []*js.Object) interface{} {
 		this.Get("_customElement").Interface().(CustomElement).AttributeChangedCallback(
-			argments[0].String(),
-			argments[1].String(),
-			argments[2].String(),
-			argments[3].String(),
+			arguments[0].String(),
+			arguments[1].String(),
+			arguments[2].String(),
+			arguments[3].String(),
 		)
 		return nil
 	}))
-	prototype.Set("adoptedCallback", js.MakeFunc(func(this *js.Object, argments []*js.Object) interface{} {
+	prototype.Set("adoptedCallback", js.MakeFunc(func(this *js.Object, arguments []*js.Object) interface{} {
 		this.Get("_customElement").Interface().(CustomElement).AdoptedCallback(
-			argments[0].Interface(),
-			argments[1].Interface(),
+			arguments[0].Interface(),
+			arguments[1].Interface(),
 		)
 		return nil
 	}))
@@ -145,7 +171,7 @@ func Define(f interface{}) error {
 	object := js.Global.Get("Object")
 	customElementTypeName := reflect.TypeOf(f).Out(0).Elem().Name()
 
-	element := js.MakeFunc(func(this *js.Object, argments []*js.Object) interface{} {
+	element := js.MakeFunc(func(this *js.Object, arguments []*js.Object) interface{} {
 		instance := js.Global.Get("Reflect").Call("construct", htmlElement, make([]interface{}, 0), js.Global.Get(customElementTypeName))
 
 		customObject := reflect.ValueOf(f).Call(nil)[0].Interface().(CustomElement)
@@ -167,23 +193,36 @@ func Define(f interface{}) error {
 	for _, field := range customElementFields {
 		field := field
 		gs := new(js.Object)
-		gs.Set("get", js.MakeFunc(func(this *js.Object, argments []*js.Object) interface{} {
+		gs.Set("get", js.MakeFunc(func(this *js.Object, arguments []*js.Object) interface{} {
 			return this.Get("_customElement").Get("__internal_object__").Get(field.Name)
 		}))
-		gs.Set("set", js.MakeFunc(func(this *js.Object, argments []*js.Object) interface{} {
+		gs.Set("set", js.MakeFunc(func(this *js.Object, arguments []*js.Object) interface{} {
 			//if the field is exported than the element attribute is also set
 			if field.PkgPath == "" {
-				this.Call("setAttribute", camelCaseToKebab(field.Name), argments[0])
+				this.Call("setAttribute", camelCaseToKebab(field.Name), arguments[0])
 			}
-			this.Get("_customElement").Get("__internal_object__").Set(field.Name, argments[0])
-			return argments[0]
+			this.Get("_customElement").Get("__internal_object__").Set(field.Name, arguments[0])
+
+			//sets binded attributes of the children in template
+			//TODO get _customElement.Element.dataBindings
+			println(this.Get("_customElement").Get("__internal_object__").Get("Element").Unsafe())
+			e := this.Get("_customElement").Get("__internal_object__").Get("Element").Interface().(Element)
+			println(e)
+			if dbs, ok := e.dataBindings[field.Name]; ok {
+				for _, db := range dbs {
+					//TODO anywhere in the text
+					print(db)
+					db.Attribute.Set("value", arguments[0])
+				}
+			}
+			return arguments[0]
 		}))
 		object.Call("defineProperty", prototype, field.Name, gs)
 	}
 
 	//observedAttributes getter
 	getter := new(js.Object)
-	getter.Set("get", js.MakeFunc(func(this *js.Object, argments []*js.Object) interface{} {
+	getter.Set("get", js.MakeFunc(func(this *js.Object, arguments []*js.Object) interface{} {
 		var observedAttributes []string
 		for _, field := range customElementFields {
 			//if it's an exported attribute, add it to observedAttributes
