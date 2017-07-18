@@ -22,7 +22,7 @@ const testElemTemplate = `
 
 <h1>
 	<span id="meh" style="display: [[Display]]; background-color: [[BackgroundColor]];">[[content]]</span>
-	<input type="text" value="{{Value}}">
+	<input id="input" type="text" value="{{Value}}">
 </h1>
 `
 
@@ -54,19 +54,25 @@ func TestDataBindings(t *testing.T) {
 	t.Run("BackgroundColor", func(t *testing.T) {
 		testElem.BackgroundColor = "yellow"
 		if testElem.Children["meh"].Get("style").Get("backgroundColor").String() != "yellow" {
-			println("Error: background-color not set to yellow")
+			t.Error("Error: background-color not set to yellow")
 		}
 	})
 	t.Run("content", func(t *testing.T) {
 		testElem.content = "Hi!"
 		if testElem.Children["meh"].Get("innerHTML").String() != "Hi!" {
-			println("Error: innerHTML of span is not set")
+			t.Error("Error: innerHTML of span is not set")
 		}
 	})
 	t.Run("height", func(t *testing.T) {
 		testElem.height = 500
 		if testElem.Get("clientHeight").Int() != 500 {
-			println("Error: height of :host is not set to 500 (", testElem.Get("clientHeight").Int(), ")")
+			t.Errorf("Error: height of :host is not set to 500 (%d)", testElem.Get("clientHeight").Int())
+		}
+	})
+	t.Run("input value", func(t *testing.T) {
+		testElem.Children["input"].Set("value", "test")
+		if testElem.Value != "test" {
+			t.Errorf("input value is not test")
 		}
 	})
 }

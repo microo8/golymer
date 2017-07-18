@@ -107,6 +107,8 @@ func (e *Element) scanElement(element *js.Object) {
 		e.addDataBindings(child, child.Get("data").String())
 	}
 
+	//TODO add MutationObserver to two way data bindings
+
 	//scan children
 	children := element.Get("children")
 	for i := 0; i < children.Get("length").Int(); i++ {
