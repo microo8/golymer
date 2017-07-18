@@ -42,7 +42,7 @@ func NewTestElem() *TestElem {
 }
 
 func load() {
-	testElem := js.Global.Get("document").Call("querySelector", "test-elem").Get("_customElement").Interface().(*TestElem)
+	testElem := js.Global.Get("document").Call("querySelector", "test-elem").Interface().(*TestElem)
 	testElem.BackgroundColor = "yellow"
 	if testElem.Children["meh"].Get("style").Get("backgroundColor").String() != "yellow" {
 		println("Error: background-color not set to yellow")
