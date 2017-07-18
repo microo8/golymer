@@ -1,6 +1,9 @@
 package main
 
-import "github.com/microo8/golymer"
+import (
+	"github.com/gopherjs/gopherjs/js"
+	"github.com/microo8/golymer"
+)
 
 const testElemTemplate = `
 <style>
@@ -38,9 +41,18 @@ func NewTestElem() *TestElem {
 	return elem
 }
 
+func load() {
+	testElem := js.Global.Get("document").Call("querySelector", "test-elem").Get("_customElement").Interface().(*TestElem)
+	testElem.BackgroundColor = "yellow"
+	if testElem.Get("style").Get("background-color").String() != "yellow" {
+		println("Error: background-color not set to yellow")
+	}
+}
+
 func main() {
 	err := golymer.Define(NewTestElem)
 	if err != nil {
 		panic(err)
 	}
+	js.Global.Set("load", load)
 }
