@@ -93,17 +93,7 @@ func (e *Element) scanElement(element *js.Object) {
 				e.Children[id] = element
 				continue
 			}
-
-			//check if the attribute's value must be binded to some elements attribute
-			var bindedFields []string
-			for _, customElementAttributeName := range oneWayDataBinding.FindAllStringSubmatch(attributeValue, -1) {
-				bindedFields = append(bindedFields, customElementAttributeName[1])
-			}
-			for _, bindedField := range bindedFields {
-				db := &dataBinding{Str: attributeValue, Attribute: attribute, Fields: bindedFields}
-				e.dataBindings[bindedField] = append(e.dataBindings[bindedField], db)
-				db.SetAttr(e.Object)
-			}
+			e.addDataBindings(attribute, attributeValue)
 		}
 	}
 
@@ -114,23 +104,27 @@ func (e *Element) scanElement(element *js.Object) {
 		if child.Get("nodeName").String() != "#text" {
 			continue
 		}
-		childData := child.Get("data").String()
-
-		var bindedFields []string
-		for _, customElementAttributeName := range oneWayDataBinding.FindAllStringSubmatch(childData, -1) {
-			bindedFields = append(bindedFields, customElementAttributeName[1])
-		}
-		for _, bindedField := range bindedFields {
-			db := &dataBinding{Str: childData, Attribute: child, Fields: bindedFields}
-			e.dataBindings[bindedField] = append(e.dataBindings[bindedField], db)
-			db.SetAttr(e.Object)
-		}
+		e.addDataBindings(child, child.Get("data").String())
 	}
 
 	//scan children
 	children := element.Get("children")
 	for i := 0; i < children.Get("length").Int(); i++ {
 		e.scanElement(children.Index(i))
+	}
+}
+
+//addDataBindings gets an js Attribute object or an textNode object and its text value
+//than finds all data bindings and adds it to the dataBindings map
+func (e *Element) addDataBindings(obj *js.Object, value string) {
+	var bindedFields []string
+	for _, customElementAttributeName := range oneWayDataBinding.FindAllStringSubmatch(value, -1) {
+		bindedFields = append(bindedFields, customElementAttributeName[1])
+	}
+	for _, bindedField := range bindedFields {
+		db := &dataBinding{Str: value, Attribute: obj, Fields: bindedFields}
+		e.dataBindings[bindedField] = append(e.dataBindings[bindedField], db)
+		db.SetAttr(e.Object)
 	}
 }
 
