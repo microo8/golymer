@@ -9,7 +9,7 @@ import (
 	"github.com/gopherjs/gopherjs/js"
 )
 
-var oneWayDataBinding = regexp.MustCompile(`\[\[([A-Z][A-Za-z0-9_]*)\]\]`)
+var oneWayDataBinding = regexp.MustCompile(`\[\[([A-Za-z0-9_]*)\]\]`)
 
 //CustomElement the interface to create the CustomElement
 type CustomElement interface {
@@ -23,6 +23,15 @@ type dataBinding struct {
 	Str       string
 	Attribute *js.Object
 	Fields    []string
+}
+
+func (db dataBinding) SetAttr(obj *js.Object) {
+	value := db.Str
+	for _, f := range db.Fields {
+		fieldValue := obj.Get("_customElement").Get("__internal_object__").Get(f).String()
+		value = strings.Replace(value, "[["+f+"]]", fieldValue, -1)
+	}
+	db.Attribute.Set("value", value)
 }
 
 //Element wrapper for the HTML element
@@ -56,7 +65,6 @@ func (e *Element) DisconnectedCallback() {
 
 //AttributeChangedCallback ...
 func (e *Element) AttributeChangedCallback(attributeName, oldValue, newValue, namespace string) {
-	println("AttributeChangedCallback", attributeName, oldValue, newValue, namespace)
 	e.Get("_customElement").Get("__internal_object__").Set(strings.Title(kebabToCamelCase(attributeName)), newValue)
 
 }
@@ -78,18 +86,18 @@ func (e *Element) scanElement(element *js.Object) {
 			if attributeName == "id" {
 				id := attribute.Get("value").String()
 				e.Children[id] = element
+				continue
 			}
 
 			//check if the attribute's value must be binded to some elements attribute
-			//TODO [[]] could be anywhere in the string + more times
 			var bindedFields []string
 			for _, customElementAttributeName := range oneWayDataBinding.FindAllStringSubmatch(attributeValue, -1) {
-				println(customElementAttributeName[1], attribute)
 				bindedFields = append(bindedFields, customElementAttributeName[1])
 			}
 			for _, bindedField := range bindedFields {
-				e.dataBindings[bindedField] = append(e.dataBindings[bindedField], &dataBinding{Str: attributeValue, Attribute: attribute, Fields: bindedFields})
-				attribute.Set("value", e.Get("_customElement").Get("__internal_object__").Get(bindedField))
+				db := &dataBinding{Str: attributeValue, Attribute: attribute, Fields: bindedFields}
+				e.dataBindings[bindedField] = append(e.dataBindings[bindedField], db)
+				db.SetAttr(e.Object)
 			}
 		}
 	}
@@ -172,13 +180,16 @@ func Define(f interface{}) error {
 	customElementTypeName := reflect.TypeOf(f).Out(0).Elem().Name()
 
 	element := js.MakeFunc(func(this *js.Object, arguments []*js.Object) interface{} {
-		instance := js.Global.Get("Reflect").Call("construct", htmlElement, make([]interface{}, 0), js.Global.Get(customElementTypeName))
-
+		instance := js.Global.Get("Reflect").Call(
+			"construct",
+			htmlElement,
+			make([]interface{}, 0),
+			js.Global.Get(customElementTypeName),
+		)
 		customObject := reflect.ValueOf(f).Call(nil)[0].Interface().(CustomElement)
 		customElement := js.MakeWrapper(customObject)
 		customElement.Get("__internal_object__").Get("Element").Set("Object", instance)
 		instance.Set("_customElement", customElement)
-
 		return instance
 	})
 
@@ -187,7 +198,8 @@ func Define(f interface{}) error {
 	object.Call("setPrototypeOf", prototype, htmlElement.Get("prototype"))
 	object.Call("setPrototypeOf", element, htmlElement)
 
-	customElementFields := getStructFields(reflect.TypeOf(f).Out(0).Elem())
+	customElementType := reflect.TypeOf(f).Out(0).Elem()
+	customElementFields := getStructFields(customElementType)
 
 	//getters and setters of the customElement
 	for _, field := range customElementFields {
@@ -200,19 +212,16 @@ func Define(f interface{}) error {
 			//if the field is exported than the element attribute is also set
 			if field.PkgPath == "" {
 				this.Call("setAttribute", camelCaseToKebab(field.Name), arguments[0])
+			} else {
+				this.Get("_customElement").Get("__internal_object__").Set(field.Name, arguments[0])
 			}
-			this.Get("_customElement").Get("__internal_object__").Set(field.Name, arguments[0])
 
 			//sets binded attributes of the children in template
-			//TODO get _customElement.Element.dataBindings
-			println(this.Get("_customElement").Get("__internal_object__").Get("Element").Unsafe())
-			e := this.Get("_customElement").Get("__internal_object__").Get("Element").Interface().(Element)
-			println(e)
-			if dbs, ok := e.dataBindings[field.Name]; ok {
+			customElement := this.Get("_customElement").Interface()
+			elem := reflect.ValueOf(customElement).Elem().FieldByName("Element").Interface().(Element)
+			if dbs, ok := elem.dataBindings[field.Name]; ok {
 				for _, db := range dbs {
-					//TODO anywhere in the text
-					print(db)
-					db.Attribute.Set("value", arguments[0])
+					db.SetAttr(this)
 				}
 			}
 			return arguments[0]
