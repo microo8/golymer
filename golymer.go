@@ -31,7 +31,11 @@ func (db dataBinding) SetAttr(obj *js.Object) {
 		fieldValue := obj.Get(f).String()
 		value = strings.Replace(value, "[["+f+"]]", fieldValue, -1)
 	}
-	db.Attribute.Set("value", value)
+	if db.Attribute.Get("value") != js.Undefined {
+		db.Attribute.Set("value", value) //if it's an attribute
+	} else {
+		db.Attribute.Set("data", value) //if it's an text node
+	}
 }
 
 //Element wrapper for the HTML element
@@ -75,6 +79,7 @@ func (e *Element) AdoptedCallback(oldDocument, newDocument interface{}) {
 }
 
 func (e *Element) scanElement(element *js.Object) {
+	//find data binded attributes
 	elementAttributes := element.Get("attributes")
 	if elementAttributes != js.Undefined {
 		for i := 0; i < elementAttributes.Get("length").Int(); i++ {
@@ -88,7 +93,6 @@ func (e *Element) scanElement(element *js.Object) {
 				e.Children[id] = element
 				continue
 			}
-			//TODO style object?
 
 			//check if the attribute's value must be binded to some elements attribute
 			var bindedFields []string
@@ -100,6 +104,26 @@ func (e *Element) scanElement(element *js.Object) {
 				e.dataBindings[bindedField] = append(e.dataBindings[bindedField], db)
 				db.SetAttr(e.Object)
 			}
+		}
+	}
+
+	//find textChild with data binded value
+	childNodes := element.Get("childNodes")
+	for i := 0; i < childNodes.Get("length").Int(); i++ {
+		child := childNodes.Index(i)
+		if child.Get("nodeName").String() != "#text" {
+			continue
+		}
+		childData := child.Get("data").String()
+
+		var bindedFields []string
+		for _, customElementAttributeName := range oneWayDataBinding.FindAllStringSubmatch(childData, -1) {
+			bindedFields = append(bindedFields, customElementAttributeName[1])
+		}
+		for _, bindedField := range bindedFields {
+			db := &dataBinding{Str: childData, Attribute: child, Fields: bindedFields}
+			e.dataBindings[bindedField] = append(e.dataBindings[bindedField], db)
+			db.SetAttr(e.Object)
 		}
 	}
 

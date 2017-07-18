@@ -33,6 +33,7 @@ type TestElem struct {
 //NewTestElem ...
 func NewTestElem() *TestElem {
 	elem := &TestElem{
+		content:         "Hello world!",
 		height:          100,
 		Display:         "block",
 		BackgroundColor: "red",
