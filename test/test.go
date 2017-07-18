@@ -1,6 +1,8 @@
 package main
 
 import (
+	"testing"
+
 	"github.com/gopherjs/gopherjs/js"
 	"github.com/microo8/golymer"
 )
@@ -8,16 +10,19 @@ import (
 const testElemTemplate = `
 <style>
 	:host {
-		display: flex;
+		display: block;
+		box-shadow: 0px 6px 10px #000;
+		height: [[height]]px;
 	}
 
 	h1 {
-		font-size: 50px;
+		font-size: 100px;
 	}
 </style>
 
-<h1 height="[[height]]">
+<h1>
 	<span id="meh" style="display: [[Display]]; background-color: [[BackgroundColor]];">[[content]]</span>
+	<input type="text" value="{{Value}}">
 </h1>
 `
 
@@ -28,6 +33,7 @@ type TestElem struct {
 	height          int
 	Display         string
 	BackgroundColor string
+	Value           string
 }
 
 //NewTestElem ...
@@ -42,12 +48,39 @@ func NewTestElem() *TestElem {
 	return elem
 }
 
-func load() {
+//TestDataBindings tests data bindings on the TestElem
+func TestDataBindings(t *testing.T) {
 	testElem := js.Global.Get("document").Call("querySelector", "test-elem").Interface().(*TestElem)
-	testElem.BackgroundColor = "yellow"
-	if testElem.Children["meh"].Get("style").Get("backgroundColor").String() != "yellow" {
-		println("Error: background-color not set to yellow")
-	}
+	t.Run("BackgroundColor", func(t *testing.T) {
+		testElem.BackgroundColor = "yellow"
+		if testElem.Children["meh"].Get("style").Get("backgroundColor").String() != "yellow" {
+			println("Error: background-color not set to yellow")
+		}
+	})
+	t.Run("content", func(t *testing.T) {
+		testElem.content = "Hi!"
+		if testElem.Children["meh"].Get("innerHTML").String() != "Hi!" {
+			println("Error: innerHTML of span is not set")
+		}
+	})
+	t.Run("height", func(t *testing.T) {
+		testElem.height = 500
+		if testElem.Get("clientHeight").Int() != 500 {
+			println("Error: height of :host is not set to 500 (", testElem.Get("clientHeight").Int(), ")")
+		}
+	})
+}
+
+func test() {
+	//flag.Set("test.v", "true")
+	testing.Main(func(pat, str string) (bool, error) { return true, nil },
+		[]testing.InternalTest{{
+			Name: "TestDataBindings",
+			F:    TestDataBindings,
+		}},
+		[]testing.InternalBenchmark{},
+		[]testing.InternalExample{},
+	)
 }
 
 func main() {
@@ -55,5 +88,5 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	js.Global.Set("load", load)
+	js.Global.Set("test", test)
 }
