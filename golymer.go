@@ -28,7 +28,7 @@ type dataBinding struct {
 func (db dataBinding) SetAttr(obj *js.Object) {
 	value := db.Str
 	for _, f := range db.Fields {
-		fieldValue := obj.Get("_customElement").Get("__internal_object__").Get(f).String()
+		fieldValue := obj.Get(f).String()
 		value = strings.Replace(value, "[["+f+"]]", fieldValue, -1)
 	}
 	db.Attribute.Set("value", value)
@@ -65,7 +65,7 @@ func (e *Element) DisconnectedCallback() {
 
 //AttributeChangedCallback ...
 func (e *Element) AttributeChangedCallback(attributeName, oldValue, newValue, namespace string) {
-	e.Get("_customElement").Get("__internal_object__").Set(strings.Title(kebabToCamelCase(attributeName)), newValue)
+	e.Get("_customElement").Set(strings.Title(kebabToCamelCase(attributeName)), newValue)
 
 }
 
@@ -177,52 +177,61 @@ func Define(f interface{}) error {
 
 	htmlElement := js.Global.Get("HTMLElement")
 	object := js.Global.Get("Object")
-	customElementTypeName := reflect.TypeOf(f).Out(0).Elem().Name()
+	customElementType := reflect.TypeOf(f).Out(0).Elem()
+	customElementFields := getStructFields(customElementType)
 
 	element := js.MakeFunc(func(this *js.Object, arguments []*js.Object) interface{} {
 		instance := js.Global.Get("Reflect").Call(
 			"construct",
 			htmlElement,
 			make([]interface{}, 0),
-			js.Global.Get(customElementTypeName),
+			js.Global.Get(customElementType.Name()),
 		)
-		customObject := reflect.ValueOf(f).Call(nil)[0].Interface().(CustomElement)
-		customElement := js.MakeWrapper(customObject)
-		customElement.Get("__internal_object__").Get("Element").Set("Object", instance)
-		instance.Set("_customElement", customElement)
+		customObject := reflect.ValueOf(f).Call(nil)[0]
+		customObject.Elem().FieldByName("Element").FieldByName("Object").Set(reflect.ValueOf(instance))
+		var proxy *js.Object
+		gs := new(js.Object)
+		gs.Set("get", js.MakeFunc(func(this *js.Object, arguments []*js.Object) interface{} {
+			if arguments[1].String() == "__internal_object__" || arguments[1].String() == "$val" {
+				return proxy
+			}
+			return arguments[0].Get("__internal_object__").Get(arguments[1].String())
+		}))
+		gs.Set("set", js.MakeFunc(func(this *js.Object, arguments []*js.Object) interface{} {
+			customObject.Elem().FieldByName(arguments[1].String()).Set(reflect.ValueOf(arguments[2].Interface()))
+			//sets binded attributes of the children in template
+			elem := customObject.Elem().FieldByName("Element").Interface().(Element)
+			if dbs, ok := elem.dataBindings[arguments[1].String()]; ok {
+				for _, db := range dbs {
+					db.SetAttr(proxy)
+				}
+			}
+			return true
+		}))
+
+		proxy = js.Global.Get("Proxy").New(js.MakeWrapper(customObject.Interface()), gs)
+		instance.Set("_customElement", proxy)
 		return instance
 	})
 
-	js.Global.Set(customElementTypeName, element)
+	js.Global.Set(customElementType.Name(), element)
 	prototype := element.Get("prototype")
 	object.Call("setPrototypeOf", prototype, htmlElement.Get("prototype"))
 	object.Call("setPrototypeOf", element, htmlElement)
-
-	customElementType := reflect.TypeOf(f).Out(0).Elem()
-	customElementFields := getStructFields(customElementType)
 
 	//getters and setters of the customElement
 	for _, field := range customElementFields {
 		field := field
 		gs := new(js.Object)
 		gs.Set("get", js.MakeFunc(func(this *js.Object, arguments []*js.Object) interface{} {
-			return this.Get("_customElement").Get("__internal_object__").Get(field.Name)
+			return this.Get("_customElement").Get(field.Name)
 		}))
 		gs.Set("set", js.MakeFunc(func(this *js.Object, arguments []*js.Object) interface{} {
 			//if the field is exported than the element attribute is also set
 			if field.PkgPath == "" {
 				this.Call("setAttribute", camelCaseToKebab(field.Name), arguments[0])
 			} else {
-				this.Get("_customElement").Get("__internal_object__").Set(field.Name, arguments[0])
-			}
-
-			//sets binded attributes of the children in template
-			customElement := this.Get("_customElement").Interface()
-			elem := reflect.ValueOf(customElement).Elem().FieldByName("Element").Interface().(Element)
-			if dbs, ok := elem.dataBindings[field.Name]; ok {
-				for _, db := range dbs {
-					db.SetAttr(this)
-				}
+				this.Get("_customElement").Set(field.Name, arguments[0])
 			}
 			return arguments[0]
 		}))
@@ -246,6 +255,6 @@ func Define(f interface{}) error {
 
 	setPrototypeCallbacks(prototype)
 
-	js.Global.Get("customElements").Call("define", camelCaseToKebab(customElementTypeName), element)
+	js.Global.Get("customElements").Call("define", camelCaseToKebab(customElementType.Name()), element)
 	return nil
 }
