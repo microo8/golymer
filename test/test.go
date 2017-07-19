@@ -20,11 +20,10 @@ const testElemTemplate = `
 	}
 </style>
 
-<h1>
+<h1 id="heading" height="{{Value}}">
 	<span id="meh" style="background-color: [[BackgroundColor]];">[[content]]</span>
-	<input id="input" type="text" value="{{Value}}">
 </h1>
-	<test-elem-two id="two" display="[[Display]]"></test-elem-two>
+<test-elem-two id="two" display="[[Display]]"></test-elem-two>
 `
 
 //TestElem ...
@@ -53,12 +52,14 @@ func NewTestElem() *TestElem {
 type TestElemTwo struct {
 	golymer.Element
 	Display string
+	Value   string
 }
 
 //NewTestElemTwo ...
 func NewTestElemTwo() *TestElemTwo {
 	elem := &TestElemTwo{
 		Display: "none",
+		Value:   "foobar",
 	}
 	elem.Template = `
 	<style>
@@ -179,12 +180,6 @@ func TestDataBindings(t *testing.T) {
 			t.Errorf("Error: height of :host is not set to 500 (%d)", testElem.Get("clientHeight").Int())
 		}
 	})
-	t.Run("input value", func(t *testing.T) {
-		testElem.Children["input"].Set("value", "test")
-		if testElem.Value != "test" {
-			t.Errorf("input value is not test")
-		}
-	})
 	t.Run("testElem two display", func(t *testing.T) {
 		testElem.Display = "flex"
 		if testElemTwo.Display != "flex" {
@@ -192,6 +187,15 @@ func TestDataBindings(t *testing.T) {
 		}
 		if testElemTwo.Call("getAttribute", "display").String() != "flex" {
 			t.Errorf("testElemTwo has not set tag attribute display to flex")
+		}
+	})
+	t.Run("two way value", func(t *testing.T) {
+		testElem.Children["heading"].Call("setAttribute", "height", "test")
+		if testElem.Children["heading"].Call("getAttribute", "value").String() != "test" {
+			t.Errorf("testElemTwo has not changed value attribute to 'test' value is: '%s'", testElemTwo.Call("getAttribute", "value").String())
+		}
+		if testElem.Value != "test" {
+			t.Errorf("two way databinding error: elem two value set but test-elem.Value is not test")
 		}
 	})
 }
