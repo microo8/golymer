@@ -69,8 +69,10 @@ func (e *Element) DisconnectedCallback() {
 
 //AttributeChangedCallback ...
 func (e *Element) AttributeChangedCallback(attributeName, oldValue, newValue, namespace string) {
-	e.Get("__internal_object__").Set(strings.Title(kebabToCamelCase(attributeName)), newValue)
-
+	//TODO if attribute didn't change don't set the field
+	if newValue != e.Get("__internal_object__").Get(toExportedFieldName(attributeName)).String() {
+		e.Get("__internal_object__").Set(toExportedFieldName(attributeName), newValue)
+	}
 }
 
 //AdoptedCallback ...
@@ -197,10 +199,20 @@ func newCustomObjectProxy(customObject reflect.Value) (proxy *js.Object) {
 		return arguments[0].Get("__internal_object__").Get(arguments[1].String())
 	}))
 	handler.Set("set", js.MakeFunc(func(this *js.Object, arguments []*js.Object) interface{} {
-		arguments[0].Get("__internal_object__").Set(arguments[1].String(), arguments[2])
+		attributeName := arguments[1].String()
+		field, ok := customObject.Elem().Type().FieldByName(attributeName)
+		//field doesn't exist
+		if !ok {
+			return true
+		}
+		arguments[0].Get("__internal_object__").Set(attributeName, arguments[2])
+		//if it's exported set also the tag attribute
+		if field.PkgPath == "" {
+			arguments[0].Get("__internal_object__").Get("Element").Get("Object").Call("setAttribute", camelCaseToKebab(attributeName), arguments[2])
+		}
 		//sets binded attributes of the children in template
 		elem := customObject.Elem().FieldByName("Element").Interface().(Element)
-		if dbs, ok := elem.dataBindings[arguments[1].String()]; ok {
+		if dbs, ok := elem.dataBindings[attributeName]; ok {
 			for _, db := range dbs {
 				db.SetAttr(proxy)
 			}

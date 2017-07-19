@@ -21,9 +21,10 @@ const testElemTemplate = `
 </style>
 
 <h1>
-	<span id="meh" style="display: [[Display]]; background-color: [[BackgroundColor]];">[[content]]</span>
+	<span id="meh" style="background-color: [[BackgroundColor]];">[[content]]</span>
 	<input id="input" type="text" value="{{Value}}">
 </h1>
+	<test-elem-two id="two" display="[[Display]]"></test-elem-two>
 `
 
 //TestElem ...
@@ -45,6 +46,31 @@ func NewTestElem() *TestElem {
 		BackgroundColor: "red",
 	}
 	elem.Template = testElemTemplate
+	return elem
+}
+
+//TestElemTwo ...
+type TestElemTwo struct {
+	golymer.Element
+	Display string
+}
+
+//NewTestElemTwo ...
+func NewTestElemTwo() *TestElemTwo {
+	elem := &TestElemTwo{
+		Display: "none",
+	}
+	elem.Template = `
+	<style>
+		:host {
+			display: [[Display]];
+			background-color: red;
+			width: 10vw;
+			height: 10vh;
+		}
+	</style>
+	test-elem-two
+	`
 	return elem
 }
 
@@ -100,21 +126,37 @@ func TestTypeAssertion(t *testing.T) {
 	if !ok {
 		t.Fatalf("DOM node cannot be type-asserted to CustomElement interface")
 	}
-	_, ok = js.Global.Get("document").Call("querySelector", "test-elem").Interface().(*TestElem)
+	testElem, ok := js.Global.Get("document").Call("querySelector", "test-elem").Interface().(*TestElem)
 	if !ok {
 		t.Fatalf("DOM node cannot be type-asserted to *TestElem")
+	}
+	two, ok := testElem.Children["two"]
+	if !ok {
+		t.Error("test-elem didn't collect child with id 'two'")
+	}
+	_, ok = two.Interface().(*TestElemTwo)
+	if !ok {
+		t.Fatalf("child 'tow' DOM node cannot be type-asserted to *TestElemTwo")
 	}
 }
 
 //TestDataBindings tests data bindings on the TestElem
 func TestDataBindings(t *testing.T) {
 	testElem := js.Global.Get("document").Call("querySelector", "test-elem").Interface().(*TestElem)
+	testElemTwo := testElem.Children["two"].Interface().(*TestElemTwo)
+
+	t.Run("Non existing attribute", func(t *testing.T) {
+		testElem.Call("setAttribute", "foo-attribute", "bar-value")
+		if testElem.Get("__internal_object__").Get("fooAttribute").String() == "bar-value" {
+			t.Error("setAttribute has set non-existing attribute on test-elem tag")
+		}
+	})
 	t.Run("BackgroundColor", func(t *testing.T) {
 		testElem.BackgroundColor = "yellow"
 		if testElem.Children["meh"].Get("style").Get("backgroundColor").String() != "yellow" {
 			t.Error("Error: background-color not set to yellow")
 		}
-		if testElem.Get("background-color").String() != "yellow" {
+		if testElem.Call("getAttribute", "background-color").String() != "yellow" {
 			t.Error("Error: background-color attribute of test-elem not set to yellow (it's an exported field, it must set attributes of the tag)")
 		}
 		testElem.Call("setAttribute", "background-color", "green")
@@ -143,6 +185,15 @@ func TestDataBindings(t *testing.T) {
 			t.Errorf("input value is not test")
 		}
 	})
+	t.Run("testElem two display", func(t *testing.T) {
+		testElem.Display = "flex"
+		if testElemTwo.Display != "flex" {
+			t.Errorf("testElemTwo has not set Display to flex")
+		}
+		if testElemTwo.Call("getAttribute", "display").String() != "flex" {
+			t.Errorf("testElemTwo has not set tag attribute display to flex")
+		}
+	})
 }
 
 func test() {
@@ -165,6 +216,10 @@ func test() {
 
 func main() {
 	err := golymer.Define(NewTestElem)
+	if err != nil {
+		panic(err)
+	}
+	err = golymer.Define(NewTestElemTwo)
 	if err != nil {
 		panic(err)
 	}

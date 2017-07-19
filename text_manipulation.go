@@ -69,6 +69,10 @@ func startsWithInitialism(s string) string {
 	return initialism
 }
 
+func toExportedFieldName(name string) string {
+	return strings.Title(kebabToCamelCase(name))
+}
+
 // commonInitialisms, taken from
 // https://github.com/golang/lint/blob/206c0f020eba0f7fbcfbc467a5eb808037df2ed6/lint.go#L731
 var commonInitialisms = map[string]bool{
