@@ -150,7 +150,6 @@ func (e *Element) addDataBindings(obj *js.Object, value string) {
 			mutationRecord := arguments[0].Index(i)
 			attributeName := mutationRecord.Get("attributeName").String()
 			newValue := mutationRecord.Get("target").Call("getAttribute", attributeName)
-			print(fieldName, attributeName, newValue)
 			e.Get("__internal_object__").Set(fieldName, newValue)
 		}
 		return nil

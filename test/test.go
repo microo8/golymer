@@ -2,6 +2,7 @@ package main
 
 import (
 	"testing"
+	"time"
 
 	"github.com/gopherjs/gopherjs/js"
 	"github.com/microo8/golymer"
@@ -191,9 +192,10 @@ func TestDataBindings(t *testing.T) {
 	})
 	t.Run("two way value", func(t *testing.T) {
 		testElem.Children["heading"].Call("setAttribute", "height", "test")
-		if testElem.Children["heading"].Call("getAttribute", "value").String() != "test" {
-			t.Errorf("testElemTwo has not changed value attribute to 'test' value is: '%s'", testElemTwo.Call("getAttribute", "value").String())
+		if testElem.Children["heading"].Call("getAttribute", "height").String() != "test" {
+			t.Errorf("testElemTwo has not changed value attribute to 'test' value is: '%s'", testElemTwo.Call("getAttribute", "height").String())
 		}
+		time.Sleep(time.Millisecond * 200)
 		if testElem.Value != "test" {
 			t.Errorf("two way databinding error: elem two value set but test-elem.Value is not test")
 		}
@@ -202,7 +204,7 @@ func TestDataBindings(t *testing.T) {
 
 func test() {
 	//flag.Set("test.v", "true")
-	testing.Main(func(pat, str string) (bool, error) { return true, nil },
+	go testing.Main(func(pat, str string) (bool, error) { return true, nil },
 		[]testing.InternalTest{
 			{
 				Name: "TestDataBindings",
