@@ -33,6 +33,7 @@ const testElemTemplate = `
 	<input id="inputName" type="text" value="{{dataObject.Name}}">
 	<input id="inputDate" type="date" value="{{dataObject.Date}}">
 	<input id="inputActive" type="checkbox" checked="{{dataObject.Active}}">
+	<div id="divName" value="{{dataObject.Name}}"></div>
 </form>
 `
 
@@ -315,10 +316,16 @@ func TestDataBindings(t *testing.T) {
 			)
 		}
 		testElem.dataObject.Name = "George"
-		if testElem.Children["inputAge"].Get("value").String() != "George" {
+		if testElem.Children["inputName"].Get("value").String() != "George" {
 			t.Errorf("setting dataObject.Name to George doesn't set the input value. got %v(%T)",
 				testElem.Children["inputName"].Get("value").Interface(),
 				testElem.Children["inputName"].Get("value").Interface(),
+			)
+		}
+		if testElem.Children["divName"].Get("value").String() != "George" {
+			t.Errorf("setting dataObject.Name to George doesn't set the div value. got %v(%T)",
+				testElem.Children["divName"].Get("value").Interface(),
+				testElem.Children["divName"].Get("value").Interface(),
 			)
 		}
 		testElem.dataObject.Active = false
@@ -334,6 +341,30 @@ func TestDataBindings(t *testing.T) {
 				testElem.Children["inputDate"].Get("value").Interface(),
 				testElem.Children["inputDate"].Get("value").Interface(),
 			)
+		}
+	})
+
+	t.Run("subproperty twoWayDataBinding other way around", func(t *testing.T) {
+		testElem.Children["inputAge"].Set("value", 100)
+		if testElem.dataObject.Age != 100 {
+			t.Errorf("not set dataObject.Age to 100, got %v", testElem.dataObject.Age)
+		}
+		testElem.Children["inputName"].Set("value", "Michael")
+		if testElem.dataObject.Name != "Michael" {
+			t.Errorf("inputName.value not set dataObject.Name to Michael, got %v", testElem.dataObject.Name)
+		}
+		testElem.Children["divName"].Set("value", "Linus")
+		if testElem.dataObject.Name != "Linus" {
+			t.Errorf("divName.value not set dataObject.Name to Michael, got %v", testElem.dataObject.Name)
+		}
+		testElem.Children["inputActive"].Set("checked", true)
+		if testElem.dataObject.Active != true {
+			t.Errorf("not set dataObject.Active to true, got %v", testElem.dataObject.Active)
+		}
+		testTime := time.Date(2000, 1, 1, 1, 0, 0, 0, time.UTC)
+		testElem.Children["inputDate"].Set("value", testTime)
+		if testElem.dataObject.Date != testTime {
+			t.Errorf("not set dataObject.Date to %v, got %v", testTime, testElem.dataObject.Age)
 		}
 	})
 }
