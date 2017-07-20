@@ -50,8 +50,8 @@ func setPrototypeCallbacks(prototype *js.Object) {
 	prototype.Set("attributeChangedCallback", js.MakeFunc(func(this *js.Object, arguments []*js.Object) interface{} {
 		this.Get("__internal_object__").Interface().(CustomElement).AttributeChangedCallback(
 			arguments[0].String(),
-			arguments[1].String(),
-			arguments[2].String(),
+			arguments[1],
+			arguments[2],
 			arguments[3].String(),
 		)
 		return nil
@@ -81,10 +81,12 @@ func newCustomObjectProxy(customObject reflect.Value) (proxy *js.Object) {
 			if !ok {
 				return true
 			}
-			arguments[0].Get("__internal_object__").Set(attributeName, arguments[2])
+			convertedValue := convertJSType(field.Type, arguments[2])
+			arguments[0].Get("__internal_object__").Set(attributeName, convertedValue)
 			//if it's exported set also the tag attribute
 			if field.PkgPath == "" {
-				arguments[0].Get("__internal_object__").Get("Element").Get("Object").Call("setAttribute", camelCaseToKebab(attributeName), arguments[2])
+				instance := arguments[0].Get("__internal_object__").Get("Element").Get("Object")
+				instance.Call("setAttribute", camelCaseToKebab(attributeName), arguments[2])
 			}
 			//sets binded attributes of the children in template
 			elem := customObject.Elem().FieldByName("Element").Interface().(Element)
@@ -93,11 +95,32 @@ func newCustomObjectProxy(customObject reflect.Value) (proxy *js.Object) {
 					db.SetAttr(proxy)
 				}
 			}
+			if db, ok := elem.twoWayDataBindings[attributeName]; ok {
+				db.SetAttr(proxy)
+			}
 			return true
 		}),
 	}
 	proxy = js.Global.Get("Proxy").New(js.MakeWrapper(customObject.Interface()), handler)
 	return
+}
+
+func convertJSType(t reflect.Type, value *js.Object) interface{} {
+	switch t.Kind() {
+	case reflect.Bool:
+		return value.Bool()
+	case reflect.Int:
+		return value.Int()
+	case reflect.Int64:
+		return value.Int64()
+	case reflect.Float64:
+		return value.Float()
+	case reflect.String:
+		return value.String()
+	case reflect.Uint64:
+		return value.Uint64()
+	}
+	return value.Interface()
 }
 
 //Define registers an new custom element
@@ -134,25 +157,27 @@ func Define(f interface{}) error {
 	object.Call("setPrototypeOf", prototype, htmlElement.Get("prototype"))
 	object.Call("setPrototypeOf", element, htmlElement)
 
-	//getters and setters of the customElement
-	for _, field := range customElementFields {
-		field := field
-		gs := map[string]interface{}{
-			"get": js.MakeFunc(func(this *js.Object, arguments []*js.Object) interface{} {
-				return this.Get("__internal_object__").Get(field.Name)
-			}),
-			"set": js.MakeFunc(func(this *js.Object, arguments []*js.Object) interface{} {
-				//if the field is exported than the element attribute is also set
-				if field.PkgPath == "" {
-					this.Call("setAttribute", camelCaseToKebab(field.Name), arguments[0])
-				} else {
-					this.Get("__internal_object__").Set(field.Name, arguments[0])
-				}
-				return arguments[0]
-			}),
+	/*
+		//getters and setters of the customElement
+		for _, field := range customElementFields {
+			field := field
+			gs := map[string]interface{}{
+				"get": js.MakeFunc(func(this *js.Object, arguments []*js.Object) interface{} {
+					return this.Get("__internal_object__").Get(field.Name)
+				}),
+				"set": js.MakeFunc(func(this *js.Object, arguments []*js.Object) interface{} {
+					//if the field is exported than the element attribute is also set
+					if field.PkgPath == "" {
+						this.Call("setAttribute", camelCaseToKebab(field.Name), arguments[0])
+					} else {
+						this.Get("__internal_object__").Set(field.Name, arguments[0])
+					}
+					return arguments[0]
+				}),
+			}
+			object.Call("defineProperty", prototype, field.Name, gs)
 		}
-		object.Call("defineProperty", prototype, field.Name, gs)
-	}
+	*/
 
 	//observedAttributes getter
 	object.Call("defineProperty", element, "observedAttributes", map[string]interface{}{

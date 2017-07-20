@@ -13,7 +13,7 @@ var oneWayRegex = regexp.MustCompile(`\[\[([A-Za-z0-9_]*)\]\]`)
 type CustomElement interface {
 	ConnectedCallback()
 	DisconnectedCallback()
-	AttributeChangedCallback(attributeName, oldValue, newValue, namespace string)
+	AttributeChangedCallback(attributeName string, oldValue interface{}, newValue interface{}, namespace string)
 	AdoptedCallback(oldDocument, newDocument interface{})
 }
 
@@ -43,7 +43,9 @@ type twoWayDataBinding struct {
 }
 
 func (db twoWayDataBinding) SetAttr(obj *js.Object) {
-	db.Attribute.Set("value", obj.Get(db.Field))
+	if db.Attribute.Get("value").String() != obj.Get(db.Field).String() {
+		db.Attribute.Set("value", obj.Get(db.Field))
+	}
 }
 
 //Element wrapper for the HTML element
@@ -76,20 +78,18 @@ func (e *Element) ConnectedCallback() {
 
 //DisconnectedCallback ...
 func (e *Element) DisconnectedCallback() {
-	println(e, "DisconnectedCallback")
 }
 
 //AttributeChangedCallback ...
-func (e *Element) AttributeChangedCallback(attributeName, oldValue, newValue, namespace string) {
+func (e *Element) AttributeChangedCallback(attributeName string, oldValue interface{}, newValue interface{}, namespace string) {
 	//if attribute didn't change don't set the field
-	if newValue != e.Get("__internal_object__").Get(toExportedFieldName(attributeName)).String() {
+	if oldValue != newValue {
 		e.Get("__internal_object__").Set(toExportedFieldName(attributeName), newValue)
 	}
 }
 
 //AdoptedCallback ...
 func (e *Element) AdoptedCallback(oldDocument, newDocument interface{}) {
-	println(e, "AdoptedCallback", oldDocument, newDocument)
 }
 
 func (e *Element) scanElement(element *js.Object) {
@@ -145,21 +145,25 @@ func (e *Element) addDataBindings(obj *js.Object, value string) {
 		return
 	}
 	fieldName := value[2 : len(value)-2]
-	mutationObserver := js.Global.Get("window").Get("MutationObserver").New(js.MakeFunc(func(this *js.Object, arguments []*js.Object) interface{} {
-		for i := 0; i < arguments[0].Length(); i++ {
-			mutationRecord := arguments[0].Index(i)
-			attributeName := mutationRecord.Get("attributeName").String()
-			newValue := mutationRecord.Get("target").Call("getAttribute", attributeName)
-			e.Get("__internal_object__").Set(fieldName, newValue)
-		}
-		return nil
-	}))
+	mutationObserver := js.Global.Get("window").Get("MutationObserver").New(
+		js.MakeFunc(func(this *js.Object, arguments []*js.Object) interface{} {
+			for i := 0; i < arguments[0].Length(); i++ {
+				mutationRecord := arguments[0].Index(i)
+				attributeName := mutationRecord.Get("attributeName").String()
+				newValue := mutationRecord.Get("target").Call("getAttribute", attributeName)
+				if e.Get("__internal_object__").Get(fieldName) != newValue {
+					e.Get("__internal_object__").Set(fieldName, newValue)
+				}
+			}
+			return nil
+		}))
 	mutationObserver.Call(
 		"observe",
 		obj.Get("ownerElement"),
 		map[string]interface{}{
-			"attributes":      true,
-			"attributeFilter": []string{obj.Get("name").String()},
+			"attributes":        true,
+			"attributeFilter":   []string{obj.Get("name").String()},
+			"attributeOldValue": true,
 		},
 	)
 	db := &twoWayDataBinding{Attribute: obj, Field: fieldName, MutationObserver: mutationObserver}
