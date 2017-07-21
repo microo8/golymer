@@ -157,27 +157,25 @@ func Define(f interface{}) error {
 	object.Call("setPrototypeOf", prototype, htmlElement.Get("prototype"))
 	object.Call("setPrototypeOf", element, htmlElement)
 
-	/*
-		//getters and setters of the customElement
-		for _, field := range customElementFields {
-			field := field
-			gs := map[string]interface{}{
-				"get": js.MakeFunc(func(this *js.Object, arguments []*js.Object) interface{} {
-					return this.Get("__internal_object__").Get(field.Name)
-				}),
-				"set": js.MakeFunc(func(this *js.Object, arguments []*js.Object) interface{} {
-					//if the field is exported than the element attribute is also set
-					if field.PkgPath == "" {
-						this.Call("setAttribute", camelCaseToKebab(field.Name), arguments[0])
-					} else {
-						this.Get("__internal_object__").Set(field.Name, arguments[0])
-					}
-					return arguments[0]
-				}),
-			}
-			object.Call("defineProperty", prototype, field.Name, gs)
+	//getters and setters of the customElement
+	for _, field := range customElementFields {
+		field := field
+		gs := map[string]interface{}{
+			"get": js.MakeFunc(func(this *js.Object, arguments []*js.Object) interface{} {
+				return this.Get("__internal_object__").Get(field.Name)
+			}),
+			"set": js.MakeFunc(func(this *js.Object, arguments []*js.Object) interface{} {
+				//if the field is exported than the element attribute is also set
+				if field.PkgPath == "" {
+					this.Call("setAttribute", camelCaseToKebab(field.Name), arguments[0])
+				} else {
+					this.Get("__internal_object__").Set(field.Name, arguments[0])
+				}
+				return arguments[0]
+			}),
 		}
-	*/
+		object.Call("defineProperty", prototype, field.Name, gs)
+	}
 
 	//observedAttributes getter
 	object.Call("defineProperty", element, "observedAttributes", map[string]interface{}{

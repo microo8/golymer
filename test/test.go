@@ -9,102 +9,6 @@ import (
 	"github.com/microo8/golymer"
 )
 
-const testElemTemplate = `
-<style>
-	:host {
-		display: block;
-		box-shadow: 0px 6px 10px #000;
-		height: [[height]]px;
-	}
-
-	h1 {
-		font-size: 100px;
-	}
-</style>
-
-<h1 id="heading" height="{{Value}}" int="{{intValue2}}">
-	<span id="meh" style="background-color: [[BackgroundColor]];">[[content]]</span>
-</h1>
-<test-elem-two id="two" display="[[Display]]" counter="{{intValue}}"></test-elem-two>
-
-<form>
-	<h2 id="formHeading">[[dataObject.Heading]]</h2>
-	<input id="inputAge" type="number" value="{{dataObject.Age}}">
-	<input id="inputName" type="text" value="{{dataObject.Name}}">
-	<input id="inputDate" type="date" value="{{dataObject.Date}}">
-	<input id="inputActive" type="checkbox" checked="{{dataObject.Active}}">
-	<div id="divName" value="{{dataObject.Name}}"></div>
-</form>
-`
-
-//TestElem ...
-type TestElem struct {
-	golymer.Element
-	content         string
-	height          int
-	Display         string
-	BackgroundColor string
-	Value           string
-	intValue        int
-	intValue2       int
-	dataObject      *TestDataObject
-}
-
-//NewTestElem ...
-func NewTestElem() *TestElem {
-	elem := &TestElem{
-		content:         "Hello world!",
-		height:          100,
-		Display:         "block",
-		BackgroundColor: "red",
-		dataObject: &TestDataObject{
-			Age:    28,
-			Name:   "John",
-			Date:   time.Now(),
-			Active: true,
-		},
-	}
-	elem.Template = testElemTemplate
-	return elem
-}
-
-//TestDataObject ...
-type TestDataObject struct {
-	Heading string
-	Age     int
-	Name    string
-	Date    time.Time
-	Active  bool
-}
-
-//TestElemTwo ...
-type TestElemTwo struct {
-	golymer.Element
-	Display string
-	Value   string
-	Counter int
-}
-
-//NewTestElemTwo ...
-func NewTestElemTwo() *TestElemTwo {
-	elem := &TestElemTwo{
-		Display: "none",
-		Value:   "foobar",
-	}
-	elem.Template = `
-	<style>
-		:host {
-			display: [[Display]];
-			background-color: red;
-			width: 10vw;
-			height: 10vh;
-		}
-	</style>
-	test-elem-two
-	`
-	return elem
-}
-
 const mutationWait = 50
 
 //testing constructors
@@ -301,71 +205,130 @@ func TestDataBindings(t *testing.T) {
 	})
 
 	t.Run("subproperty oneWayDataBinding", func(t *testing.T) {
-		testElem.dataObject.Heading = "form"
+		testElem.inputObject.Heading = "form"
 		if testElem.Children["formHeading"].Get("innerHTML").String() != "form" {
-			t.Errorf("setting subproperty dataObject.Heading didn't set the oneWayDataBinding")
+			t.Errorf("setting subproperty inputObject.Heading didn't set the oneWayDataBinding")
 		}
 	})
 
-	t.Run("subproperty twoWayDataBinding", func(t *testing.T) {
-		testElem.dataObject.Age = 30
+	t.Run("input subproperty twoWayDataBinding", func(t *testing.T) {
+		testElem.inputObject.Age = 30
 		if testElem.Children["inputAge"].Get("value").Int() != 30 {
-			t.Errorf("setting dataObject.Age to 30 doesn't set the input value. got %v(%T)",
+			t.Errorf("setting inputObject.Age to 30 doesn't set the input value. got %v(%T)",
 				testElem.Children["inputAge"].Get("value").Interface(),
 				testElem.Children["inputAge"].Get("value").Interface(),
 			)
 		}
-		testElem.dataObject.Name = "George"
+		testElem.inputObject.Name = "George"
 		if testElem.Children["inputName"].Get("value").String() != "George" {
-			t.Errorf("setting dataObject.Name to George doesn't set the input value. got %v(%T)",
+			t.Errorf("setting inputObject.Name to George doesn't set the input value. got %v(%T)",
 				testElem.Children["inputName"].Get("value").Interface(),
 				testElem.Children["inputName"].Get("value").Interface(),
 			)
 		}
-		if testElem.Children["divName"].Get("value").String() != "George" {
-			t.Errorf("setting dataObject.Name to George doesn't set the div value. got %v(%T)",
-				testElem.Children["divName"].Get("value").Interface(),
-				testElem.Children["divName"].Get("value").Interface(),
-			)
-		}
-		testElem.dataObject.Active = false
+		testElem.inputObject.Active = false
 		if testElem.Children["inputActive"].Get("checked").Bool() != false {
-			t.Errorf("setting dataObject.Active to false doesn't set the input value. got %v(%T)",
+			t.Errorf("setting inputObject.Active to false doesn't set the input value. got %v(%T)",
 				testElem.Children["inputActive"].Get("value").Interface(),
 				testElem.Children["inputActive"].Get("value").Interface(),
 			)
 		}
-		testElem.dataObject.Date = time.Date(2000, 1, 1, 1, 0, 0, 0, time.UTC)
-		if testElem.Children["inputDate"].Get("value").String() != testElem.dataObject.Date.Format("2001-05-01") {
-			t.Errorf("setting date didn't set the inputDate.value, got %v(%T)",
-				testElem.Children["inputDate"].Get("value").Interface(),
-				testElem.Children["inputDate"].Get("value").Interface(),
-			)
-		}
+		/*
+			TODO
+			testElem.inputObject.Date = time.Date(2000, 1, 1, 1, 0, 0, 0, time.UTC)
+			if testElem.Children["inputDate"].Get("value").String() != testElem.inputObject.Date.Format("2001-05-01") {
+				t.Errorf("setting date didn't set the inputDate.value, got %v(%T)",
+					testElem.Children["inputDate"].Get("value").Interface(),
+					testElem.Children["inputDate"].Get("value").Interface(),
+				)
+			}
+		*/
 	})
 
-	t.Run("subproperty twoWayDataBinding other way around", func(t *testing.T) {
+	t.Run("div subproperty twoWayDataBinding", func(t *testing.T) {
+		testElem.divObject.Age = 30
+		if testElem.Children["divAge"].Call("getAttribute", "value").Int() != 30 {
+			t.Errorf("setting divObject.Age to 30 doesn't set the input value. got %v(%T)",
+				testElem.Children["divAge"].Call("getAttribute", "value").Interface(),
+				testElem.Children["divAge"].Call("getAttribute", "value").Interface(),
+			)
+		}
+		testElem.divObject.Name = "George"
+		if testElem.Children["divName"].Call("getAttribute", "value").String() != "George" {
+			t.Errorf("setting divObject.Name to George doesn't set the input value. got %v(%T)",
+				testElem.Children["divName"].Call("getAttribute", "value").Interface(),
+				testElem.Children["divName"].Call("getAttribute", "value").Interface(),
+			)
+		}
+		testElem.divObject.Active = false
+		if testElem.Children["divActive"].Call("getAttribute", "checked").Bool() != false {
+			t.Errorf("setting divObject.Active to false doesn't set the input value. got %v(%T)",
+				testElem.Children["divActive"].Call("getAttribute", "value").Interface(),
+				testElem.Children["divActive"].Call("getAttribute", "value").Interface(),
+			)
+		}
+		/*
+			TODO
+			testElem.divObject.Date = time.Date(2000, 1, 1, 1, 0, 0, 0, time.UTC)
+			if testElem.Children["divDate"].Call("getAttribute", "value").String() != testElem.divObject.Date.Format("2001-05-01") {
+				t.Errorf("setting div didn't set the divObject.Date.value, got %v(%T)",
+					testElem.Children["divDate"].Call("getAttribute", "value").Interface(),
+					testElem.Children["divDate"].Call("getAttribute", "value").Interface(),
+				)
+			}
+		*/
+	})
+
+	t.Run("input subproperty twoWayDataBinding other way around", func(t *testing.T) {
 		testElem.Children["inputAge"].Set("value", 100)
-		if testElem.dataObject.Age != 100 {
-			t.Errorf("not set dataObject.Age to 100, got %v", testElem.dataObject.Age)
+		time.Sleep(time.Millisecond * mutationWait)
+		if testElem.inputObject.Age != 100 {
+			t.Errorf("not set inputObject.Age to 100, got %v", testElem.inputObject.Age)
 		}
 		testElem.Children["inputName"].Set("value", "Michael")
-		if testElem.dataObject.Name != "Michael" {
-			t.Errorf("inputName.value not set dataObject.Name to Michael, got %v", testElem.dataObject.Name)
-		}
-		testElem.Children["divName"].Set("value", "Linus")
-		if testElem.dataObject.Name != "Linus" {
-			t.Errorf("divName.value not set dataObject.Name to Michael, got %v", testElem.dataObject.Name)
+		time.Sleep(time.Millisecond * mutationWait)
+		if testElem.inputObject.Name != "Michael" {
+			t.Errorf("inputName.value not set inputObject.Name to Michael, got %v", testElem.inputObject.Name)
 		}
 		testElem.Children["inputActive"].Set("checked", true)
-		if testElem.dataObject.Active != true {
-			t.Errorf("not set dataObject.Active to true, got %v", testElem.dataObject.Active)
+		time.Sleep(time.Millisecond * mutationWait)
+		if testElem.inputObject.Active != true {
+			t.Errorf("not set inputObject.Active to true, got %v", testElem.inputObject.Active)
 		}
-		testTime := time.Date(2000, 1, 1, 1, 0, 0, 0, time.UTC)
-		testElem.Children["inputDate"].Set("value", testTime)
-		if testElem.dataObject.Date != testTime {
-			t.Errorf("not set dataObject.Date to %v, got %v", testTime, testElem.dataObject.Age)
+		/*
+			testTime := time.Date(2000, 1, 1, 1, 0, 0, 0, time.UTC)
+			testElem.Children["inputDate"].Set("value", testTime)
+			time.Sleep(time.Millisecond * mutationWait)
+			if testElem.inputObject.Date != testTime {
+				t.Errorf("not set inputObject.Date to %v, got %v", testTime, testElem.inputObject.Age)
+			}
+		*/
+	})
+
+	t.Run("div subproperty twoWayDataBinding other way around", func(t *testing.T) {
+		testElem.Children["divAge"].Call("setAttribute", "value", 100)
+		time.Sleep(time.Millisecond * mutationWait)
+		if testElem.divObject.Age != 100 {
+			t.Errorf("not set divObject.Age to 100, got %v", testElem.divObject.Age)
 		}
+		testElem.Children["divName"].Call("setAttribute", "value", "Michael")
+		time.Sleep(time.Millisecond * mutationWait)
+		if testElem.divObject.Name != "Michael" {
+			t.Errorf("divName.value not set divObject.Name to Michael, got %v", testElem.divObject.Name)
+		}
+		testElem.Children["divActive"].Call("setAttribute", "checked", true)
+		time.Sleep(time.Millisecond * mutationWait)
+		if testElem.divObject.Active != true {
+			t.Errorf("not set divObject.Active to true, got %v", testElem.divObject.Active)
+		}
+		/*
+			testTime := time.Date(2000, 1, 1, 1, 0, 0, 0, time.UTC)
+			testElem.Children["divDate"].Call("setAttribute", "value", testTime)
+			time.Sleep(time.Millisecond * mutationWait)
+			if testElem.divObject.Date != testTime {
+				t.Errorf("not set divObject.Date to %v, got %v", testTime, testElem.divObject.Age)
+			}
+		*/
 	})
 }
 
@@ -391,14 +354,6 @@ func test() {
 	)
 }
 
-func main() {
-	err := golymer.Define(NewTestElem)
-	if err != nil {
-		panic(err)
-	}
-	err = golymer.Define(NewTestElemTwo)
-	if err != nil {
-		panic(err)
-	}
+func init() {
 	js.Global.Set("test", test)
 }
