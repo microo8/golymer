@@ -65,46 +65,6 @@ func setPrototypeCallbacks(prototype *js.Object) {
 	}))
 }
 
-//newCustomObjectProxy creates an js Proxy object that can track what has been get or set to run dataBindings
-func newCustomObjectProxy(customObject reflect.Value) (proxy *js.Object) {
-	handler := map[string]interface{}{
-		"get": js.MakeFunc(func(this *js.Object, arguments []*js.Object) interface{} {
-			if arguments[1].String() == "__internal_object__" || arguments[1].String() == "$val" {
-				return proxy
-			}
-			return arguments[0].Get("__internal_object__").Get(arguments[1].String())
-		}),
-		"set": js.MakeFunc(func(this *js.Object, arguments []*js.Object) interface{} {
-			attributeName := arguments[1].String()
-			field, ok := customObject.Elem().Type().FieldByName(attributeName)
-			//field doesn't exist
-			if !ok {
-				return true
-			}
-			convertedValue := convertJSType(field.Type, arguments[2])
-			arguments[0].Get("__internal_object__").Set(attributeName, convertedValue)
-			//if it's exported set also the tag attribute
-			if field.PkgPath == "" {
-				instance := arguments[0].Get("__internal_object__").Get("Element").Get("Object")
-				instance.Call("setAttribute", camelCaseToKebab(attributeName), arguments[2])
-			}
-			//sets binded attributes of the children in template
-			elem := customObject.Elem().FieldByName("Element").Interface().(Element)
-			if dbs, ok := elem.oneWayDataBindings[attributeName]; ok {
-				for _, db := range dbs {
-					db.SetAttr(proxy)
-				}
-			}
-			if db, ok := elem.twoWayDataBindings[attributeName]; ok {
-				db.SetAttr(proxy)
-			}
-			return true
-		}),
-	}
-	proxy = js.Global.Get("Proxy").New(js.MakeWrapper(customObject.Interface()), handler)
-	return
-}
-
 func convertJSType(t reflect.Type, value *js.Object) interface{} {
 	switch t.Kind() {
 	case reflect.Bool:
@@ -145,10 +105,11 @@ func Define(f interface{}) error {
 			js.Global.Get(customElementType.Name()),
 		)
 		customObject := reflect.ValueOf(f).Call(nil)[0]
-		customObject.Elem().FieldByName("Element").FieldByName("Object").Set(reflect.ValueOf(instance))
-		customObjectProxy := newCustomObjectProxy(customObject)
+		customObjectProxy := newProxy(customObject, []string{})
 		instance.Set("__internal_object__", customObjectProxy)
 		instance.Set("$var", customObjectProxy)
+		customObject.Elem().FieldByName("Element").FieldByName("Object").Set(reflect.ValueOf(instance))
+		customObject.Elem().FieldByName("Element").FieldByName("ObjValue").Set(reflect.ValueOf(customObject))
 		return instance
 	})
 

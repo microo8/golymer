@@ -18,38 +18,6 @@ type CustomElement interface {
 	AdoptedCallback(oldDocument, newDocument interface{})
 }
 
-//attrPath is used as a path to subproperties of an js.Object
-//eg obj.attr.subAttr
-type attrPath []string
-
-func newAttrPath(str string) attrPath {
-	return strings.Split(str, ".")
-}
-
-//Get returns the js.Object in the attrPath
-func (ap attrPath) Get(obj *js.Object) *js.Object {
-	result := obj
-	for _, attrName := range ap {
-		result = result.Get(attrName)
-	}
-	return result
-}
-
-//Set sets the new value to the object attrPath
-//eg. obj.attr.subAttr = value
-func (ap attrPath) Set(obj *js.Object, value interface{}) {
-	attr := obj
-	for _, attrName := range ap[:len(ap)-1] {
-		attr = attr.Get(attrName)
-	}
-	attr.Set(ap[len(ap)-1], value)
-}
-
-//String returns an string representation of the path
-func (ap attrPath) String() string {
-	return strings.Join(ap, ".")
-}
-
 type oneWayDataBinding struct {
 	Str       string
 	Attribute *js.Object
@@ -84,7 +52,7 @@ func (db twoWayDataBinding) SetAttr(obj *js.Object) {
 //Element wrapper for the HTML element
 type Element struct {
 	*js.Object
-	objType            reflect.Type //custom element struct type
+	ObjValue           reflect.Value //custom element struct type
 	Template           string
 	Children           map[string]*js.Object
 	oneWayDataBindings map[string][]*oneWayDataBinding
@@ -128,8 +96,7 @@ func (e *Element) AdoptedCallback(oldDocument, newDocument interface{}) {
 
 func (e *Element) scanElement(element *js.Object) {
 	//find data binded attributes
-	elementAttributes := element.Get("attributes")
-	if elementAttributes != js.Undefined {
+	if elementAttributes := element.Get("attributes"); elementAttributes != js.Undefined {
 		for i := 0; i < elementAttributes.Length(); i++ {
 			attribute := elementAttributes.Index(i)
 			attributeName := attribute.Get("name").String()
@@ -170,13 +137,18 @@ func (e *Element) addDataBindings(obj *js.Object, value string) {
 		bindedPaths = append(bindedPaths, newAttrPath(customElementAttributeName[1]))
 	}
 	for _, bindedPath := range bindedPaths {
+		//set proxy object on subproperty
+		subpropertyPath := bindedPath[:len(bindedPath)-1]
+		if len(subpropertyPath) > 0 && !e.subpropertyProxyAdded(subpropertyPath) {
+			proxy := newProxy(e.ObjValue, subpropertyPath)
+			subpropertyPath.Set(js.InternalObject(e.ObjValue.Elem()).Get("ptr"), js.InternalObject(proxy))
+		}
+
 		db := &oneWayDataBinding{Str: value, Attribute: obj, Paths: bindedPaths}
 		e.oneWayDataBindings[bindedPath.String()] = append(e.oneWayDataBindings[bindedPath.String()], db)
-		if len(bindedPath) > 1 {
-			e.setProxyPath(bindedPath[:len(bindedPath)-1])
-		}
 		db.SetAttr(e.Object)
 	}
+
 	//twoWayDataBinding, obj is attribute DOM object and value is in {{}}
 	if obj.Get("value") == js.Undefined || value[:2] != "{{" || value[len(value)-2:] != "}}" {
 		return
@@ -202,27 +174,79 @@ func (e *Element) addDataBindings(obj *js.Object, value string) {
 			"attributeFilter": []string{obj.Get("name").String()},
 		},
 	)
+
+	//set proxy object on subproperty
+	subpropertyPath := path[:len(path)-1]
+	if len(subpropertyPath) > 0 && !e.subpropertyProxyAdded(subpropertyPath) {
+		proxy := newProxy(e.ObjValue, subpropertyPath)
+		subpropertyPath.Set(js.InternalObject(e.ObjValue.Elem()).Get("ptr"), js.InternalObject(proxy))
+	}
+
 	db := &twoWayDataBinding{Attribute: obj, Path: path, MutationObserver: mutationObserver}
 	e.twoWayDataBindings[path.String()] = db
 	db.SetAttr(e.Object)
 }
 
-//setProxyPath wraps the subproperty in an Proxy object, to detect setting an field on it
-func (e *Element) setProxyPath(path attrPath) {
-	var proxy *js.Object
+func (e *Element) subpropertyProxyAdded(subpropertyPath attrPath) bool {
+	for p := range e.oneWayDataBindings {
+		subPath := newAttrPath(p)
+		subPath = subPath[:len(subPath)-1]
+		if subPath.String() == subpropertyPath.String() {
+			return true
+		}
+	}
+	for p := range e.twoWayDataBindings {
+		subPath := newAttrPath(p)
+		subPath = subPath[:len(subPath)-1]
+		if subPath.String() == subpropertyPath.String() {
+			return true
+		}
+	}
+	return false
+}
+
+//newProxy creates an js Proxy object that can track what has been get or set to run dataBindings
+func newProxy(customObject reflect.Value, pathPrefix attrPath) (proxy *js.Object) {
 	handler := map[string]interface{}{
 		"get": js.MakeFunc(func(this *js.Object, arguments []*js.Object) interface{} {
-			if arguments[1].String() == "__internal_object__" || arguments[1].String() == "$val" {
+			attributeName := arguments[1].String()
+			path := append(pathPrefix, attributeName)
+			if attributeName == "__internal_object__" || attributeName == "$val" {
 				return proxy
 			}
-			return arguments[0].Get("__internal_object__").Get(arguments[1].String())
+			return path.Get(arguments[0].Get("__internal_object__"))
 		}),
 		"set": js.MakeFunc(func(this *js.Object, arguments []*js.Object) interface{} {
 			attributeName := arguments[1].String()
-			print(attributeName)
+			path := append(pathPrefix, attributeName)
+			if len(pathPrefix) > 0 {
+				print("SUBPROPERTY SETTER!!!", path.String(), arguments[2].Interface())
+			}
+			field, ok := path.GetField(customObject.Elem().Type())
+			//field doesn't exist
+			if !ok {
+				return true
+			}
+			convertedValue := convertJSType(field.Type, arguments[2])
+			path.Set(arguments[0].Get("__internal_object__"), convertedValue)
+			//if it's exported and isn't a subproperty set also the tag attribute
+			if len(pathPrefix) == 0 && field.PkgPath == "" {
+				instance := arguments[0].Get("__internal_object__").Get("Element").Get("Object")
+				instance.Call("setAttribute", camelCaseToKebab(attributeName), arguments[2])
+			}
+			//sets binded attributes of the children in template
+			elem := customObject.Elem().FieldByName("Element").Interface().(Element)
+			if dbs, ok := elem.oneWayDataBindings[attributeName]; ok {
+				for _, db := range dbs {
+					db.SetAttr(proxy)
+				}
+			}
+			if db, ok := elem.twoWayDataBindings[attributeName]; ok {
+				db.SetAttr(proxy)
+			}
 			return true
 		}),
 	}
-	print(handler)
-	//proxy = js.Global.Get("Proxy").New(js.MakeWrapper(customObject.Interface()), handler)
+	proxy = js.Global.Get("Proxy").New(js.MakeWrapper(customObject.Interface()), handler)
+	return
 }
