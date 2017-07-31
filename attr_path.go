@@ -2,7 +2,6 @@ package golymer
 
 import (
 	"reflect"
-	"runtime/debug"
 	"strings"
 
 	"github.com/gopherjs/gopherjs/js"
@@ -18,8 +17,6 @@ func newAttrPath(str string) attrPath {
 
 //Get returns the js.Object in the attrPath
 func (ap attrPath) Get(obj *js.Object) *js.Object {
-	print("Get", ap.String(), obj)
-	debug.PrintStack()
 	result := obj
 	for _, attrName := range ap {
 		val := result.Get(attrName)
@@ -57,6 +54,18 @@ func (ap attrPath) GetField(objType reflect.Type) (reflect.StructField, bool) {
 		}
 	}
 	return field, true
+}
+
+//GetFieldValue gets reflect.StructField in a path from reflect.Type
+func (ap attrPath) GetFieldValue(objType reflect.Value) reflect.Value {
+	field := objType
+	for _, attr := range ap {
+		field = field.FieldByName(attr)
+		if field.Kind() == reflect.Ptr {
+			field = field.Elem()
+		}
+	}
+	return field
 }
 
 //String returns an string representation of the path

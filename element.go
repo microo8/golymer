@@ -141,7 +141,8 @@ func (e *Element) addDataBindings(obj *js.Object, value string) {
 		subpropertyPath := bindedPath[:len(bindedPath)-1]
 		if len(subpropertyPath) > 0 && !e.subpropertyProxyAdded(subpropertyPath) {
 			proxy := newProxy(e.ObjValue, subpropertyPath)
-			subpropertyPath.Set(js.InternalObject(e.ObjValue.Elem()).Get("ptr"), js.InternalObject(proxy))
+			subpropertyPath.Set(js.InternalObject(e.ObjValue.Elem()).Get("ptr"), proxy)
+			println(js.InternalObject(e.ObjValue.Elem()))
 		}
 
 		db := &oneWayDataBinding{Str: value, Attribute: obj, Paths: bindedPaths}
@@ -207,6 +208,13 @@ func (e *Element) subpropertyProxyAdded(subpropertyPath attrPath) bool {
 
 //newProxy creates an js Proxy object that can track what has been get or set to run dataBindings
 func newProxy(customObject reflect.Value, pathPrefix attrPath) (proxy *js.Object) {
+	subObj := customObject
+	if len(pathPrefix) > 0 {
+		subObj = pathPrefix.GetFieldValue(customObject.Elem())
+		if subObj.Kind() == reflect.Ptr {
+			subObj = subObj.Elem()
+		}
+	}
 	handler := map[string]interface{}{
 		"get": js.MakeFunc(func(this *js.Object, arguments []*js.Object) interface{} {
 			attributeName := arguments[1].String()
@@ -218,17 +226,16 @@ func newProxy(customObject reflect.Value, pathPrefix attrPath) (proxy *js.Object
 		}),
 		"set": js.MakeFunc(func(this *js.Object, arguments []*js.Object) interface{} {
 			attributeName := arguments[1].String()
-			path := append(pathPrefix, attributeName)
 			if len(pathPrefix) > 0 {
-				print("SUBPROPERTY SETTER!!!", path.String(), arguments[2].Interface())
+				print("SUBPROPERTY SETTER!!!", attributeName, arguments[2].Interface())
 			}
-			field, ok := path.GetField(customObject.Elem().Type())
+			field, ok := getFieldByName(subObj, attributeName)
 			//field doesn't exist
 			if !ok {
 				return true
 			}
 			convertedValue := convertJSType(field.Type, arguments[2])
-			path.Set(arguments[0].Get("__internal_object__"), convertedValue)
+			arguments[0].Get("__internal_object__").Set(attributeName, convertedValue)
 			//if it's exported and isn't a subproperty set also the tag attribute
 			if len(pathPrefix) == 0 && field.PkgPath == "" {
 				instance := arguments[0].Get("__internal_object__").Get("Element").Get("Object")
@@ -247,6 +254,13 @@ func newProxy(customObject reflect.Value, pathPrefix attrPath) (proxy *js.Object
 			return true
 		}),
 	}
-	proxy = js.Global.Get("Proxy").New(js.MakeWrapper(customObject.Interface()), handler)
+	proxy = js.Global.Get("Proxy").New(js.MakeWrapper(subObj.Interface()), handler)
 	return
+}
+
+func getFieldByName(obj reflect.Value, attributeName string) (reflect.StructField, bool) {
+	if obj.Kind() == reflect.Ptr {
+		obj = obj.Elem()
+	}
+	return obj.Type().FieldByName(attributeName)
 }

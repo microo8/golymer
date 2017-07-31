@@ -1,4 +1,4 @@
 # golymer
-Creating custom html elements with golang (gopherjs)
+Create HTML custom elements with go (gopherjs)
 
 under construction
