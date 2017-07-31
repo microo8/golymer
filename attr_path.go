@@ -12,7 +12,7 @@ import (
 type attrPath []string
 
 func newAttrPath(str string) attrPath {
-	return strings.Split(str, ".")
+	return strings.Split(strings.TrimSpace(str), ".")
 }
 
 //Get returns the js.Object in the attrPath

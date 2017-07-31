@@ -30,12 +30,11 @@ func (db oneWayDataBinding) SetAttr(obj *js.Object) {
 		fieldValue := path.Get(obj).String()
 		value = strings.Replace(value, "[["+path.String()+"]]", fieldValue, -1)
 	}
-	//print("SetAttr", db.Attribute, value)
 	if db.Attribute.Get("value") != js.Undefined {
 		db.Attribute.Set("value", value) //if it's an attribute
-	} else {
-		db.Attribute.Set("data", value) //if it's an text node
+		return
 	}
+	db.Attribute.Set("data", value) //if it's an text node
 }
 
 type twoWayDataBinding struct {
@@ -62,22 +61,12 @@ type Element struct {
 
 //ConnectedCallback ...
 func (e *Element) ConnectedCallback() {
-	attr := new(js.Object)
-	attr.Set("mode", "open")
-	e.Call("attachShadow", attr)
-	shadowRoot := e.Get("shadowRoot")
-	shadowRoot.Set("innerHTML", e.Template)
-	if e.Children == nil {
-		e.Children = make(map[string]*js.Object)
-	}
-	if e.oneWayDataBindings == nil {
-		e.oneWayDataBindings = make(map[string][]*oneWayDataBinding)
-	}
-	if e.twoWayDataBindings == nil {
-		e.twoWayDataBindings = make(map[string]*twoWayDataBinding)
-	}
-	e.scanElement(shadowRoot)
-	print(e.oneWayDataBindings)
+	e.Call("attachShadow", map[string]interface{}{"mode": "open"})
+	e.Get("shadowRoot").Set("innerHTML", e.Template)
+	e.Children = make(map[string]*js.Object)
+	e.oneWayDataBindings = make(map[string][]*oneWayDataBinding)
+	e.twoWayDataBindings = make(map[string]*twoWayDataBinding)
+	e.scanElement(e.Get("shadowRoot"))
 }
 
 //DisconnectedCallback ...
@@ -109,7 +98,6 @@ func (e *Element) scanElement(element *js.Object) {
 			e.addDataBindings(attribute, attribute.Get("value").String())
 		}
 	}
-
 	//find textChild with data binded value
 	childNodes := element.Get("childNodes")
 	for i := 0; i < childNodes.Length(); i++ {
@@ -119,7 +107,6 @@ func (e *Element) scanElement(element *js.Object) {
 		}
 		e.addDataBindings(child, child.Get("data").String())
 	}
-
 	//scan children
 	children := element.Get("children")
 	for i := 0; i < children.Length(); i++ {
@@ -141,7 +128,6 @@ func (e *Element) addDataBindings(obj *js.Object, value string) {
 			proxy := newProxy(e.ObjValue, subpropertyPath)
 			subpropertyPath.Set(js.InternalObject(e.ObjValue).Get("ptr"), proxy)
 		}
-
 		db := &oneWayDataBinding{Str: value, Attribute: obj, Paths: bindedPaths}
 		e.oneWayDataBindings[bindedPath.String()] = append(e.oneWayDataBindings[bindedPath.String()], db)
 		db.SetAttr(e.Object)
@@ -152,34 +138,16 @@ func (e *Element) addDataBindings(obj *js.Object, value string) {
 		return
 	}
 	path := newAttrPath(value[2 : len(value)-2])
-	mutationObserver := js.Global.Get("window").Get("MutationObserver").New(
-		js.MakeFunc(func(this *js.Object, arguments []*js.Object) interface{} {
-			for i := 0; i < arguments[0].Length(); i++ {
-				mutationRecord := arguments[0].Index(i)
-				attributeName := mutationRecord.Get("attributeName").String()
-				newValue := mutationRecord.Get("target").Call("getAttribute", attributeName)
-				if path.Get(e.Get("__internal_object__")) != newValue {
-					path.Set(e.Get("__internal_object__"), newValue)
-				}
-			}
-			return nil
-		}))
-	mutationObserver.Call(
-		"observe",
-		obj.Get("ownerElement"),
-		map[string]interface{}{
-			"attributes":      true,
-			"attributeFilter": []string{obj.Get("name").String()},
-		},
-	)
-
+	if _, ok := e.twoWayDataBindings[path.String()]; ok {
+		panic("data binding " + path.String() + " set more than once")
+	}
 	//set proxy object on subproperty
 	subpropertyPath := path[:len(path)-1]
 	if len(subpropertyPath) > 0 && !e.subpropertyProxyAdded(subpropertyPath) {
 		proxy := newProxy(e.ObjValue, subpropertyPath)
 		subpropertyPath.Set(js.InternalObject(e.ObjValue).Get("ptr"), proxy)
 	}
-
+	mutationObserver := newMutationObserver(e.Get("__internal_object__"), obj, path)
 	db := &twoWayDataBinding{Attribute: obj, Path: path, MutationObserver: mutationObserver}
 	e.twoWayDataBindings[path.String()] = db
 	db.SetAttr(e.Object)
@@ -203,9 +171,32 @@ func (e *Element) subpropertyProxyAdded(subpropertyPath attrPath) bool {
 	return false
 }
 
+func newMutationObserver(proxy *js.Object, attr *js.Object, path attrPath) *js.Object {
+	attr.Set("__attr_path__", path.String())
+	mutationObserver := js.Global.Get("window").Get("MutationObserver").New(
+		js.MakeFunc(func(this *js.Object, arguments []*js.Object) interface{} {
+			newValue := attr.Get("value")
+			path := newAttrPath(attr.Get("__attr_path__").String())
+			if path.Get(proxy) != newValue {
+				path.Set(proxy, newValue)
+			}
+			return nil
+		}))
+	mutationObserver.Call(
+		"observe",
+		attr.Get("ownerElement"),
+		map[string]interface{}{
+			"attributes":      true,
+			"attributeFilter": []string{attr.Get("name").String()},
+		},
+	)
+	return mutationObserver
+}
+
 //newProxy creates an js Proxy object that can track what has been get or set to run dataBindings
 func newProxy(customObject reflect.Value, pathPrefix attrPath) (proxy *js.Object) {
-	subObj := js.InternalObject(customObject.Interface())
+	internalCustomObject := js.InternalObject(customObject.Interface())
+	subObj := internalCustomObject
 	if len(pathPrefix) > 0 {
 		subObj = pathPrefix.Get(subObj)
 	}
@@ -236,11 +227,12 @@ func newProxy(customObject reflect.Value, pathPrefix attrPath) (proxy *js.Object
 			elem := customObject.Elem().FieldByName("Element").Interface().(Element)
 			if dbs, ok := elem.oneWayDataBindings[path.String()]; ok {
 				for _, db := range dbs {
-					db.SetAttr(js.InternalObject(customObject.Interface()))
+					db.SetAttr(internalCustomObject)
 				}
 			}
 			if db, ok := elem.twoWayDataBindings[path.String()]; ok {
-				db.SetAttr(js.InternalObject(customObject.Interface()))
+				print(db.Path.String(), db.Attribute, convertedValue)
+				db.SetAttr(internalCustomObject)
 			}
 			return true
 		}),

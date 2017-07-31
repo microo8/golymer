@@ -229,8 +229,8 @@ func TestDataBindings(t *testing.T) {
 		testElem.inputObject.Active = false
 		if testElem.Children["inputActive"].Get("checked").Bool() != false {
 			t.Errorf("setting inputObject.Active to false doesn't set the input value. got %v(%T)",
-				testElem.Children["inputActive"].Get("value").Interface(),
-				testElem.Children["inputActive"].Get("value").Interface(),
+				testElem.Children["inputActive"].Get("checked").Interface(),
+				testElem.Children["inputActive"].Get("checked").Interface(),
 			)
 		}
 		/*
@@ -263,8 +263,8 @@ func TestDataBindings(t *testing.T) {
 		testElem.divObject.Active = false
 		if testElem.Children["divActive"].Call("getAttribute", "checked").Bool() != false {
 			t.Errorf("setting divObject.Active to false doesn't set the input value. got %v(%T)",
-				testElem.Children["divActive"].Call("getAttribute", "value").Interface(),
-				testElem.Children["divActive"].Call("getAttribute", "value").Interface(),
+				testElem.Children["divActive"].Call("getAttribute", "checked"),
+				testElem.Children["divActive"].Call("getAttribute", "checked").Bool(),
 			)
 		}
 		/*
