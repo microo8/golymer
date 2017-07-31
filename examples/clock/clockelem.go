@@ -16,41 +16,34 @@ type FancyClock struct {
 	cancel context.CancelFunc
 }
 
-//updateTime updates current time with the format
-func (ce *FancyClock) updateTime() {
-	ce.time = time.Now().Format(ce.Format)
-}
-
-//start starts the ticking by spinning up a goroutine
-func (ce *FancyClock) start() {
+//ConnectedCallback when the element is connected to the DOM, ticking may begin!
+func (ce *FancyClock) ConnectedCallback() {
+	ce.Element.ConnectedCallback() //must call this first
+	//starts the ticking by spinning up a goroutine
 	go func() {
 		for {
 			select {
 			case <-ce.ctx.Done():
+				//stops the thicking goroutine
 				return
 			case <-time.Tick(time.Second):
-				ce.updateTime()
+				//updates current time with the format
+				ce.time = time.Now().Format(ce.Format)
 			}
 		}
 	}()
 }
 
-//ConnectedCallback when the element is connected, ticking may begin!
-func (ce *FancyClock) ConnectedCallback() {
-	ce.Element.ConnectedCallback() //must call this first
-	ce.start()
-}
-
-//DisconnectedCallback stops the ticking by sending done to the context
+//DisconnectedCallback when the element is removed from the DOM
+//it stops the ticking by sending done to the context
 func (ce *FancyClock) DisconnectedCallback() {
 	ce.cancel()
 }
 
 //NewClockElem creates new clock-elem element
 func NewClockElem() *FancyClock {
-	ce := new(FancyClock)
+	ce := &FancyClock{Format: time.UnixDate}
 	ce.ctx, ce.cancel = context.WithCancel(context.Background())
-	ce.Format = time.UnixDate
 	ce.Template = `
 	<style>
 		:host {
@@ -59,12 +52,12 @@ func NewClockElem() *FancyClock {
 			font-size: 7rem;
 		}
 	</style>
-	[[time]]
-	`
+	[[time]]`
 	return ce
 }
 
 func main() {
+	//define the new fancy-clock elem
 	err := golymer.Define(NewClockElem)
 	if err != nil {
 		panic(err)
