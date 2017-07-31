@@ -48,24 +48,16 @@ func (ap attrPath) GetField(objType reflect.Type) (reflect.StructField, bool) {
 		return field, false
 	}
 	for _, attr := range ap[1:] {
-		field, ok = field.Type.FieldByName(attr)
+		if field.Type.Kind() == reflect.Ptr {
+			field, ok = field.Type.Elem().FieldByName(attr)
+		} else {
+			field, ok = field.Type.FieldByName(attr)
+		}
 		if !ok {
 			return field, false
 		}
 	}
 	return field, true
-}
-
-//GetFieldValue gets reflect.StructField in a path from reflect.Type
-func (ap attrPath) GetFieldValue(objType reflect.Value) reflect.Value {
-	field := objType
-	for _, attr := range ap {
-		field = field.FieldByName(attr)
-		if field.Kind() == reflect.Ptr {
-			field = field.Elem()
-		}
-	}
-	return field
 }
 
 //String returns an string representation of the path
