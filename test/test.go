@@ -261,7 +261,7 @@ func TestDataBindings(t *testing.T) {
 			)
 		}
 		testElem.divObject.Active = false
-		if testElem.Children["divActive"].Call("getAttribute", "checked").Bool() != false {
+		if testElem.Children["divActive"].Call("getAttribute", "checked").String() != "false" {
 			t.Errorf("setting divObject.Active to false doesn't set the input value. got %v(%T)",
 				testElem.Children["divActive"].Call("getAttribute", "checked"),
 				testElem.Children["divActive"].Call("getAttribute", "checked").Bool(),
