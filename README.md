@@ -31,7 +31,9 @@ type MyAwesomeElement struct {
 }
 
 func NewMyAwesomeElement() *MyAwesomeElement {
-	return new(MyAwesomeElement)
+	e := new(MyAwesomeElement)
+	e.Template = myAwesomeTemplate
+	return e
 }
 
 func main() {
