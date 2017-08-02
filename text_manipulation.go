@@ -73,6 +73,31 @@ func toExportedFieldName(name string) string {
 	return strings.Title(kebabToCamelCase(name))
 }
 
+//oneWayFindAll finds all one way data bindings in an string (eg. [[property]])
+func oneWayFindAll(strValue string) (result []string) {
+	value := []rune(strValue)
+	for i := 0; i < len(value); i++ {
+		if value[i] != '[' {
+			continue
+		}
+		if len(value) <= i+1 || value[i+1] != '[' {
+			continue
+		}
+		if len(value) <= i+2 || !unicode.IsLetter(value[i+2]) {
+			continue
+		}
+		for j := i + 3; j < len(value); j++ {
+			if !unicode.IsLetter(value[j]) && !unicode.IsNumber(value[j]) && value[j] != '.' {
+				if value[j] == ']' && len(value) > j+1 && value[j+1] == ']' {
+					result = append(result, string(value[i+2:j]))
+				}
+				break
+			}
+		}
+	}
+	return
+}
+
 // commonInitialisms, taken from
 // https://github.com/golang/lint/blob/206c0f020eba0f7fbcfbc467a5eb808037df2ed6/lint.go#L731
 var commonInitialisms = map[string]bool{

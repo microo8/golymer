@@ -2,7 +2,6 @@ package golymer
 
 import (
 	"reflect"
-	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -13,8 +12,6 @@ import (
 func consoleError(args ...interface{}) {
 	js.Global.Get("console").Call("error", args...)
 }
-
-var oneWayRegex = regexp.MustCompile(`\[\[([A-Za-z0-9_]+(?:\.[A-Za-z0-9_]+)*)\]\]`)
 
 //CustomElement the interface to create the CustomElement
 type CustomElement interface {
@@ -134,8 +131,8 @@ func (e *Element) scanElement(element *js.Object) {
 //than finds all data bindings and adds it to the oneWayDataBindings map
 func (e *Element) addOneWay(obj *js.Object, value string) {
 	var bindedPaths []attrPath
-	for _, customElementAttributeName := range oneWayRegex.FindAllStringSubmatch(value, -1) {
-		bindedPaths = append(bindedPaths, newAttrPath(customElementAttributeName[1]))
+	for _, path := range oneWayFindAll(value) {
+		bindedPaths = append(bindedPaths, newAttrPath(path))
 	}
 	for _, bindedPath := range bindedPaths {
 		e.subpropertyProxySet(bindedPath)
