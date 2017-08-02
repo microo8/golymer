@@ -295,14 +295,12 @@ func TestDataBindings(t *testing.T) {
 		if testElem.inputObject.Active != true {
 			t.Errorf("not set inputObject.Active to true, got %v", testElem.inputObject.Active)
 		}
-		/*
-			testTime := time.Date(2000, 1, 1, 1, 0, 0, 0, time.UTC)
-			testElem.Children["inputDate"].Set("value", testTime)
-			time.Sleep(time.Millisecond * mutationWait)
-			if testElem.inputObject.Date != testTime {
-				t.Errorf("not set inputObject.Date to %v, got %v", testTime, testElem.inputObject.Age)
-			}
-		*/
+		testTime := time.Date(2000, 1, 1, 1, 0, 0, 0, time.UTC)
+		testElem.Children["inputDate"].Set("value", testTime.Format(time.UnixDate))
+		time.Sleep(time.Millisecond * mutationWait)
+		if testElem.inputObject.Date != testTime {
+			t.Errorf("not set inputObject.Date to %v, got %v", testTime, testElem.inputObject.Date)
+		}
 	})
 
 	t.Run("div subproperty twoWayDataBinding other way around", func(t *testing.T) {
@@ -321,14 +319,12 @@ func TestDataBindings(t *testing.T) {
 		if testElem.divObject.Active != true {
 			t.Errorf("not set divObject.Active to true, got %v", testElem.divObject.Active)
 		}
-		/*
-			testTime := time.Date(2000, 1, 1, 1, 0, 0, 0, time.UTC)
-			testElem.Children["divDate"].Call("setAttribute", "value", testTime)
-			time.Sleep(time.Millisecond * mutationWait)
-			if testElem.divObject.Date != testTime {
-				t.Errorf("not set divObject.Date to %v, got %v", testTime, testElem.divObject.Age)
-			}
-		*/
+		testTime := time.Date(2000, 1, 1, 1, 0, 0, 0, time.UTC)
+		testElem.Children["divDate"].Call("setAttribute", "value", testTime.Format(time.UnixDate))
+		time.Sleep(time.Millisecond * mutationWait)
+		if testElem.divObject.Date != testTime {
+			t.Errorf("not set divObject.Date to %v, got %v", testTime, testElem.divObject.Date)
+		}
 	})
 }
 

@@ -1,7 +1,7 @@
 package golymer
 
 import (
-	"fmt"
+	"errors"
 	"reflect"
 	"strings"
 
@@ -11,19 +11,19 @@ import (
 //testConstructorFunction tests that it is a function with no attributes and one pointer result
 func testConstructorFunction(f interface{}) error {
 	if reflect.ValueOf(f).Kind() != reflect.Func {
-		return fmt.Errorf("Define Error: provided f parameter is not a function (it must be func()*YourElemType)")
+		return errors.New("Define Error: provided f parameter is not a function (it must be func()*YourElemType)")
 	}
 	if reflect.TypeOf(f).NumOut() != 1 {
-		return fmt.Errorf("Define Error: provided function doesn't have one result value (it must be func()*YourElemType)")
+		return errors.New("Define Error: provided function doesn't have one result value (it must be func()*YourElemType)")
 	}
 	if reflect.TypeOf(f).Out(0).Kind() != reflect.Ptr {
-		return fmt.Errorf("Define Error: provided function doesn't return an pointer (it must be func()*YourElemType)")
+		return errors.New("Define Error: provided function doesn't return an pointer (it must be func()*YourElemType)")
 	}
 	if elemStruct, ok := reflect.TypeOf(f).Out(0).Elem().FieldByName("Element"); !ok || elemStruct.Type.Name() != "Element" {
-		return fmt.Errorf("Define Error: provided function doesn't return an struct that has embedded golymer.Element struct (it must be func()*YourElemType)")
+		return errors.New("Define Error: provided function doesn't return an struct that has embedded golymer.Element struct (it must be func()*YourElemType)")
 	}
 	if strings.Index(camelCaseToKebab(reflect.TypeOf(f).Out(0).Elem().Name()), "-") == -1 {
-		return fmt.Errorf("Define Error: name of the struct type MUST have two words in camel case eg. MyElement will be converted to tag name my-element (it must be func()*YourElemType)")
+		return errors.New("Define Error: name of the struct type MUST have two words in camel case eg. MyElement will be converted to tag name my-element (it must be func()*YourElemType)")
 	}
 	return nil
 }
@@ -65,24 +65,6 @@ func setPrototypeCallbacks(prototype *js.Object) {
 	}))
 }
 
-func convertJSType(t reflect.Type, value *js.Object) interface{} {
-	switch t.Kind() {
-	case reflect.Bool:
-		return value.Bool()
-	case reflect.Int:
-		return value.Int()
-	case reflect.Int64:
-		return value.Int64()
-	case reflect.Float64:
-		return value.Float()
-	case reflect.String:
-		return value.String()
-	case reflect.Uint64:
-		return value.Uint64()
-	}
-	return value.Interface()
-}
-
 //Define registers an new custom element
 //takes the constructor of the element func()*YourElemType
 //element is registered under the name converted from your element type (YourElemType -> your-elem-type)
@@ -92,15 +74,13 @@ func Define(f interface{}) error {
 		return err
 	}
 
-	htmlElement := js.Global.Get("HTMLElement")
-	object := js.Global.Get("Object")
 	customElementType := reflect.TypeOf(f).Out(0).Elem()
 	customElementFields := getStructFields(customElementType)
 
 	element := js.MakeFunc(func(this *js.Object, arguments []*js.Object) interface{} {
 		instance := js.Global.Get("Reflect").Call(
 			"construct",
-			htmlElement,
+			js.Global.Get("HTMLElement"),
 			make([]interface{}, 0),
 			js.Global.Get(customElementType.Name()),
 		)
@@ -115,8 +95,8 @@ func Define(f interface{}) error {
 
 	js.Global.Set(customElementType.Name(), element)
 	prototype := element.Get("prototype")
-	object.Call("setPrototypeOf", prototype, htmlElement.Get("prototype"))
-	object.Call("setPrototypeOf", element, htmlElement)
+	js.Global.Get("Object").Call("setPrototypeOf", prototype, js.Global.Get("HTMLElement").Get("prototype"))
+	js.Global.Get("Object").Call("setPrototypeOf", element, js.Global.Get("HTMLElement"))
 
 	//getters and setters of the customElement
 	for _, field := range customElementFields {
@@ -135,11 +115,11 @@ func Define(f interface{}) error {
 				return arguments[0]
 			}),
 		}
-		object.Call("defineProperty", prototype, field.Name, gs)
+		js.Global.Get("Object").Call("defineProperty", prototype, field.Name, gs)
 	}
 
 	//observedAttributes getter
-	object.Call("defineProperty", element, "observedAttributes", map[string]interface{}{
+	js.Global.Get("Object").Call("defineProperty", element, "observedAttributes", map[string]interface{}{
 		"get": js.MakeFunc(func(this *js.Object, arguments []*js.Object) interface{} {
 			var observedAttributes []string
 			for _, field := range customElementFields {

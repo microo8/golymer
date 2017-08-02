@@ -3,10 +3,16 @@ package golymer
 import (
 	"reflect"
 	"regexp"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gopherjs/gopherjs/js"
 )
+
+func consoleError(args ...interface{}) {
+	js.Global.Get("console").Call("error", args...)
+}
 
 var oneWayRegex = regexp.MustCompile(`\[\[([A-Za-z0-9_]+(?:\.[A-Za-z0-9_]+)*)\]\]`)
 
@@ -44,8 +50,17 @@ type twoWayDataBinding struct {
 }
 
 func (db twoWayDataBinding) SetAttr(obj *js.Object) {
-	if db.Attribute.Get("value").String() != db.Path.Get(obj).String() {
-		db.Attribute.Set("value", db.Path.Get(obj))
+	value := db.Path.Get(obj)
+	/*
+		if timeValue, ok := value.Interface().(time.Time); ok {
+			formatedTime := timeValue.Format(time.UnixDate)
+			print(formatedTime)
+			db.Attribute.Set("value", formatedTime)
+			return
+		}
+	*/
+	if db.Attribute.Get("value").String() != value.String() {
+		db.Attribute.Set("value", value)
 	}
 }
 
@@ -95,7 +110,8 @@ func (e *Element) scanElement(element *js.Object) {
 				e.Children[attribute.Get("value").String()] = element
 				continue
 			}
-			e.addDataBindings(attribute, attribute.Get("value").String())
+			e.addOneWay(attribute, attribute.Get("value").String())
+			e.addTwoWay(attribute, attribute.Get("value").String())
 		}
 	}
 	//find textChild with data binded value
@@ -105,7 +121,7 @@ func (e *Element) scanElement(element *js.Object) {
 		if child.Get("nodeName").String() != "#text" {
 			continue
 		}
-		e.addDataBindings(child, child.Get("data").String())
+		e.addOneWay(child, child.Get("data").String())
 	}
 	//scan children
 	children := element.Get("children")
@@ -114,43 +130,46 @@ func (e *Element) scanElement(element *js.Object) {
 	}
 }
 
-//addDataBindings gets an js Attribute object or an textNode object and its text value
-//than finds all data bindings and adds it to the dataBindings map
-func (e *Element) addDataBindings(obj *js.Object, value string) {
+//addOneWay gets an js Attribute object or an textNode object and its text value
+//than finds all data bindings and adds it to the oneWayDataBindings map
+func (e *Element) addOneWay(obj *js.Object, value string) {
 	var bindedPaths []attrPath
 	for _, customElementAttributeName := range oneWayRegex.FindAllStringSubmatch(value, -1) {
 		bindedPaths = append(bindedPaths, newAttrPath(customElementAttributeName[1]))
 	}
 	for _, bindedPath := range bindedPaths {
-		//set proxy object on subproperty
-		subpropertyPath := bindedPath[:len(bindedPath)-1]
-		if len(subpropertyPath) > 0 && !e.subpropertyProxyAdded(subpropertyPath) {
-			proxy := newProxy(e.ObjValue, subpropertyPath)
-			subpropertyPath.Set(js.InternalObject(e.ObjValue).Get("ptr"), proxy)
-		}
+		e.subpropertyProxySet(bindedPath)
 		db := &oneWayDataBinding{Str: value, Attribute: obj, Paths: bindedPaths}
 		e.oneWayDataBindings[bindedPath.String()] = append(e.oneWayDataBindings[bindedPath.String()], db)
 		db.SetAttr(e.Object)
 	}
+}
 
+//addTwoWay gets an js Attribute object or an textNode object and its text value
+//than finds all data bindings and adds it to the twoWayDataBindings map
+func (e *Element) addTwoWay(obj *js.Object, value string) {
 	//twoWayDataBinding, obj is attribute DOM object and value is in {{}}
 	if obj.Get("value") == js.Undefined || value[:2] != "{{" || value[len(value)-2:] != "}}" {
 		return
 	}
 	path := newAttrPath(value[2 : len(value)-2])
 	if _, ok := e.twoWayDataBindings[path.String()]; ok {
-		panic("data binding " + path.String() + " set more than once")
+		consoleError("data binding", path.String(), "set more than once")
 	}
-	//set proxy object on subproperty
-	subpropertyPath := path[:len(path)-1]
-	if len(subpropertyPath) > 0 && !e.subpropertyProxyAdded(subpropertyPath) {
-		proxy := newProxy(e.ObjValue, subpropertyPath)
-		subpropertyPath.Set(js.InternalObject(e.ObjValue).Get("ptr"), proxy)
-	}
+	e.subpropertyProxySet(path)
 	mutationObserver := newMutationObserver(e.Get("__internal_object__"), obj, path)
 	db := &twoWayDataBinding{Attribute: obj, Path: path, MutationObserver: mutationObserver}
 	e.twoWayDataBindings[path.String()] = db
 	db.SetAttr(e.Object)
+}
+
+//subpropertyProxySet sets an js Proxy on an subproperty path to track get and set on its properties
+func (e *Element) subpropertyProxySet(bindedPath attrPath) {
+	subpropertyPath := bindedPath[:len(bindedPath)-1]
+	if len(subpropertyPath) > 0 && !e.subpropertyProxyAdded(subpropertyPath) {
+		proxy := newProxy(e.ObjValue, subpropertyPath)
+		subpropertyPath.Set(js.InternalObject(e.ObjValue).Get("ptr"), proxy)
+	}
 }
 
 func (e *Element) subpropertyProxyAdded(subpropertyPath attrPath) bool {
@@ -216,7 +235,19 @@ func newProxy(customObject reflect.Value, pathPrefix attrPath) (proxy *js.Object
 			if !ok {
 				return true
 			}
-			convertedValue := convertJSType(field.Type, arguments[2])
+			if isDataBindingExpression(arguments[2]) {
+				return true
+			}
+			convertedValue, err := convertJSType(field.Type, arguments[2])
+			if err != nil {
+				consoleError(
+					"Error converting value in setting the property",
+					path.String(),
+					": (", arguments[2], ")",
+					err,
+				)
+				return true
+			}
 			subObj.Set(attributeName, convertedValue)
 			//if it's exported and isn't a subproperty set also the tag attribute
 			if len(pathPrefix) == 0 && field.PkgPath == "" {
@@ -231,7 +262,6 @@ func newProxy(customObject reflect.Value, pathPrefix attrPath) (proxy *js.Object
 				}
 			}
 			if db, ok := elem.twoWayDataBindings[path.String()]; ok {
-				print(db.Path.String(), db.Attribute, convertedValue)
 				db.SetAttr(internalCustomObject)
 			}
 			return true
@@ -239,4 +269,57 @@ func newProxy(customObject reflect.Value, pathPrefix attrPath) (proxy *js.Object
 	}
 	proxy = js.Global.Get("Proxy").New(subObj, handler)
 	return
+}
+
+func convertJSType(t reflect.Type, value *js.Object) (val interface{}, err error) {
+	val = value.Interface()
+	valString, ok := val.(string)
+	if !ok {
+		return
+	}
+	switch t.Kind() {
+	case reflect.String:
+		val = valString
+		return
+	case reflect.Bool:
+		val, err = strconv.ParseBool(valString)
+	case reflect.Float32:
+		val, err = strconv.ParseFloat(valString, 32)
+	case reflect.Float64:
+		val, err = strconv.ParseFloat(valString, 64)
+	case reflect.Int:
+		val, err = strconv.ParseInt(valString, 10, 64)
+	case reflect.Int16:
+		val, err = strconv.ParseInt(valString, 10, 16)
+	case reflect.Int32:
+		val, err = strconv.ParseInt(valString, 10, 32)
+	case reflect.Int64:
+		val, err = strconv.ParseInt(valString, 10, 64)
+	case reflect.Uint:
+		val, err = strconv.ParseUint(valString, 10, 64)
+	case reflect.Uint16:
+		val, err = strconv.ParseUint(valString, 10, 16)
+	case reflect.Uint32:
+		val, err = strconv.ParseUint(valString, 10, 32)
+	case reflect.Uint64:
+		val, err = strconv.ParseUint(valString, 10, 64)
+	case reflect.Struct:
+		if t.Name() == "Time" {
+			val, err = time.Parse(time.UnixDate, valString)
+			return
+		}
+	}
+	return
+}
+
+func isDataBindingExpression(val *js.Object) bool {
+	valString, ok := val.Interface().(string)
+	if !ok {
+		return false
+	}
+	if len(valString) < 4 {
+		return false
+	}
+	return (valString[:2] == "{{" && valString[len(valString)-2:] == "}}") ||
+		(valString[:2] == "||" && valString[len(valString)-2:] == "||")
 }
