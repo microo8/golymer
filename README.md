@@ -3,7 +3,7 @@ Create HTML custom elements with go (gopherjs)
 
 under construction
 
-contribution of all kind is welcome (maybe some better project name? also an logo)
+contribution of all kind is welcome
 
 ![Caution image](caution.png)
 
