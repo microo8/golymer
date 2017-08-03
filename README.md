@@ -5,7 +5,7 @@ under construction
 
 ![Caution image](caution.png)
 
-With golymer you can create your own HTML custom elements, just by registering an go struct. The innerHTML of the shadowDOM has authomatic data bindings.
+With golymer you can create your own HTML custom elements, just by registering an go struct. The innerHTML of the shadowDOM has automatic data bindings to the struct fields.
 
 ```go
 package main
@@ -37,6 +37,7 @@ func NewMyAwesomeElement() *MyAwesomeElement {
 }
 
 func main() {
+	//pass the element constructor to the Define function
 	err := golymer.Define(NewMyAwesomeElement)
 	if err != nil {
 		panic(err)
@@ -44,6 +45,6 @@ func main() {
 }
 ```
 
-Then just run `gopherjs build`, import the generated script to your html and you can use your new element
+Then just run `$ gopherjs build`, import the generated script to your html `<script src="my_awesome_element.js"></script>` and you can use your new element
 
 `<my-awesome-element foo-attr="1" bar-attr="hello"></my-awesome-element>`
