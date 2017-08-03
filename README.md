@@ -18,9 +18,10 @@ const myAwesomeTemplate = `
 <style>
 	:host {
 		background-color: blue;
+		width: 500px;
+		height: [[FooAttr]]px;
 	}
 </style>
-<h1>[[FooAttr]]</h1>
 <p>[[privateProperty]]</p>
 <input type="text" value="{{BarAttr}}"/>
 `
@@ -33,7 +34,9 @@ type MyAwesomeElement struct {
 }
 
 func NewMyAwesomeElement() *MyAwesomeElement {
-	e := new(MyAwesomeElement)
+	e := &MyAwesomeElement{
+		FooAttr: 800,
+	}
 	e.Template = myAwesomeTemplate
 	return e
 }
@@ -49,4 +52,6 @@ func main() {
 
 Then just run `$ gopherjs build`, import the generated script to your html `<script src="my_awesome_element.js"></script>` and you can use your new element
 
-`<my-awesome-element foo-attr="1" bar-attr="hello"></my-awesome-element>`
+```html
+<my-awesome-element foo-attr="1" bar-attr="hello"></my-awesome-element>
+```
