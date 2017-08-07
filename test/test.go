@@ -333,7 +333,7 @@ func TestEvent(t *testing.T) {
 	testElem := js.Global.Get("document").Call("querySelector", "test-elem").Interface().(*TestElem)
 	t.Run("click event", func(t *testing.T) {
 		testElem.Children["heading"].Call("click")
-		if !testElem.headingClicked {
+		if !testElem.HeadingClicked {
 			t.Error("heading on-click event is not binded")
 		}
 	})
@@ -345,6 +345,17 @@ func TestSlot(t *testing.T) {
 	t.Run("slotChild added", func(t *testing.T) {
 		if _, ok := testElem.Children["slotChild"]; !ok {
 			t.Error("slotChild not added")
+		}
+	})
+}
+
+//TestObserver tests if the observer for the observed field is executed
+func TestObserver(t *testing.T) {
+	testElem := js.Global.Get("document").Call("querySelector", "test-elem").Interface().(*TestElem)
+	t.Run("Observer test", func(t *testing.T) {
+		testElem.Observe = "observed"
+		if testElem.Observe2 != "observed" {
+			t.Error("observer function was not executed")
 		}
 	})
 }
@@ -368,6 +379,10 @@ func test() {
 			{
 				Name: "TestSlot",
 				F:    TestSlot,
+			},
+			{
+				Name: "TestObserver",
+				F:    TestObserver,
 			},
 			{
 				Name: "TestDataBindings",

@@ -52,12 +52,18 @@ type TestElem struct {
 	intValue2       int
 	inputObject     *TestDataObject
 	divObject       *TestDataObject
-	headingClicked  bool
+	HeadingClicked  bool
+	Observe         string
+	Observe2        string
 }
 
 //Click ...
 func (te *TestElem) Click(event interface{}) {
-	te.headingClicked = true
+	te.HeadingClicked = true
+}
+
+func (te *TestElem) observerObserve(oldValue, newValue string) {
+	te.Observe2 = newValue
 }
 
 //NewTestElem ...
