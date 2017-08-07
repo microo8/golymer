@@ -19,10 +19,12 @@ const testElemTemplate = `
 	}
 </style>
 
-<h1 id="heading" height="{{Value}}" int="{{intValue2}}">
+<h1 id="heading" height="{{Value}}" int="{{intValue2}}" on-click="Click">
 	<span id="meh" style="background-color: [[BackgroundColor]];">[[content]]</span>
 </h1>
-<test-elem-two id="two" display="[[Display]]" counter="{{intValue}}"></test-elem-two>
+<test-elem-two id="two" display="[[Display]]" counter="{{intValue}}">
+	<p id="slotChild">slot</p>
+</test-elem-two>
 
 <form>
 	<h2 id="formHeading">[[inputObject.Heading]]</h2>
@@ -50,6 +52,12 @@ type TestElem struct {
 	intValue2       int
 	inputObject     *TestDataObject
 	divObject       *TestDataObject
+	headingClicked  bool
+}
+
+//Click ...
+func (te *TestElem) Click(event interface{}) {
+	te.headingClicked = true
 }
 
 //NewTestElem ...
@@ -109,6 +117,7 @@ func NewTestElemTwo() *TestElemTwo {
 		}
 	</style>
 	test-elem-two
+	<slot></slot>
 	`
 	return elem
 }

@@ -328,6 +328,27 @@ func TestDataBindings(t *testing.T) {
 	})
 }
 
+//TestEvent tests event bindings
+func TestEvent(t *testing.T) {
+	testElem := js.Global.Get("document").Call("querySelector", "test-elem").Interface().(*TestElem)
+	t.Run("click event", func(t *testing.T) {
+		testElem.Children["heading"].Call("click")
+		if !testElem.headingClicked {
+			t.Error("heading on-click event is not binded")
+		}
+	})
+}
+
+//TestSlot tests id the custom elements has children added to the elem shadowDOM
+func TestSlot(t *testing.T) {
+	testElem := js.Global.Get("document").Call("querySelector", "test-elem").Interface().(*TestElem)
+	t.Run("slotChild added", func(t *testing.T) {
+		if _, ok := testElem.Children["slotChild"]; !ok {
+			t.Error("slotChild not added")
+		}
+	})
+}
+
 func test() {
 	//flag.Set("test.v", "true")
 	go testing.Main(func(pat, str string) (bool, error) { return true, nil },
@@ -339,6 +360,14 @@ func test() {
 			{
 				Name: "TestTypeAssertion",
 				F:    TestTypeAssertion,
+			},
+			{
+				Name: "TestEvent",
+				F:    TestEvent,
+			},
+			{
+				Name: "TestSlot",
+				F:    TestSlot,
 			},
 			{
 				Name: "TestDataBindings",
