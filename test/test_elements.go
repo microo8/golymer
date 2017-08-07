@@ -22,7 +22,7 @@ const testElemTemplate = `
 <h1 id="heading" height="{{Value}}" int="{{intValue2}}" on-click="Click">
 	<span id="meh" style="background-color: [[BackgroundColor]];">[[content]]</span>
 </h1>
-<test-elem-two id="two" display="[[Display]]" counter="{{intValue}}">
+<test-elem-two id="two" display="[[Display]]" counter="{{intValue}}" on-custom-event="CustomEventHandler">
 	<p id="slotChild">slot</p>
 </test-elem-two>
 
@@ -43,18 +43,19 @@ const testElemTemplate = `
 //TestElem ...
 type TestElem struct {
 	golymer.Element
-	content         string
-	height          int
-	Display         string
-	BackgroundColor string
-	Value           string
-	intValue        int
-	intValue2       int
-	inputObject     *TestDataObject
-	divObject       *TestDataObject
-	HeadingClicked  bool
-	Observe         string
-	Observe2        string
+	content               string
+	height                int
+	Display               string
+	BackgroundColor       string
+	Value                 string
+	intValue              int
+	intValue2             int
+	inputObject           *TestDataObject
+	divObject             *TestDataObject
+	HeadingClicked        bool
+	Observe               string
+	Observe2              string
+	CustomEventDispatched bool
 }
 
 //Click ...
@@ -64,6 +65,11 @@ func (te *TestElem) Click(event interface{}) {
 
 func (te *TestElem) observerObserve(oldValue, newValue string) {
 	te.Observe2 = newValue
+}
+
+//CustomEventHandler handles the custom event dispatched from the test-elem-two
+func (te *TestElem) CustomEventHandler(event interface{}) {
+	te.CustomEventDispatched = true
 }
 
 //NewTestElem ...

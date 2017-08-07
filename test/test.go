@@ -331,10 +331,19 @@ func TestDataBindings(t *testing.T) {
 //TestEvent tests event bindings
 func TestEvent(t *testing.T) {
 	testElem := js.Global.Get("document").Call("querySelector", "test-elem").Interface().(*TestElem)
+	testElemTwo := testElem.Children["two"].Interface().(*TestElemTwo)
 	t.Run("click event", func(t *testing.T) {
 		testElem.Children["heading"].Call("click")
 		if !testElem.HeadingClicked {
 			t.Error("heading on-click event is not binded")
+		}
+	})
+	t.Run("custom event", func(t *testing.T) {
+		event := golymer.NewCustomEvent("custom-event")
+		event.SetDetail("custom", "custom")
+		testElemTwo.DispatchEvent(event)
+		if !testElem.CustomEventDispatched {
+			t.Error("custom event of test-elem-two was not handled")
 		}
 	})
 }
