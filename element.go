@@ -168,7 +168,7 @@ func (e *Element) addEventListener(attr *js.Object) {
 	methodName := attr.Get("value").String()
 	method := e.ObjValue.MethodByName(methodName)
 	if !method.IsValid() {
-		consoleError("Error on event listener binding, method", methodName, "doesn't exist")
+		consoleError("Error on event listener", eventName, "binding, method", methodName, "doesn't exist")
 		return
 	}
 	e.Call("addEventListener", eventName, js.MakeFunc(func(this *js.Object, arguments []*js.Object) interface{} {
