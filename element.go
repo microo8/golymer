@@ -4,7 +4,6 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/gopherjs/gopherjs/js"
 )
@@ -17,7 +16,7 @@ func consoleError(args ...interface{}) {
 type CustomElement interface {
 	ConnectedCallback()
 	DisconnectedCallback()
-	AttributeChangedCallback(attributeName string, oldValue interface{}, newValue interface{}, namespace string)
+	AttributeChangedCallback(attributeName string, oldValue string, newValue string, namespace string)
 	AdoptedCallback(oldDocument, newDocument interface{})
 }
 
@@ -30,8 +29,8 @@ type oneWayDataBinding struct {
 func (db oneWayDataBinding) SetAttr(obj *js.Object) {
 	value := db.Str
 	for _, path := range db.Paths {
-		fieldValue := path.Get(obj).String()
-		value = strings.Replace(value, "[["+path.String()+"]]", fieldValue, -1)
+		fieldValue := path.Get(obj)
+		value = strings.Replace(value, "[["+path.String()+"]]", fieldValue.String(), -1)
 	}
 	if db.Attribute.Get("value") != js.Undefined {
 		db.Attribute.Set("value", value) //if it's an attribute
@@ -48,16 +47,8 @@ type twoWayDataBinding struct {
 
 func (db twoWayDataBinding) SetAttr(obj *js.Object) {
 	value := db.Path.Get(obj)
-	/*
-		if timeValue, ok := value.Interface().(time.Time); ok {
-			formatedTime := timeValue.Format(time.UnixDate)
-			print(formatedTime)
-			db.Attribute.Set("value", formatedTime)
-			return
-		}
-	*/
 	if db.Attribute.Get("value").String() != value.String() {
-		db.Attribute.Set("value", value)
+		db.Attribute.Set("value", value.String())
 	}
 }
 
@@ -86,7 +77,7 @@ func (e *Element) DisconnectedCallback() {
 }
 
 //AttributeChangedCallback ...
-func (e *Element) AttributeChangedCallback(attributeName string, oldValue interface{}, newValue interface{}, namespace string) {
+func (e *Element) AttributeChangedCallback(attributeName string, oldValue string, newValue string, namespace string) {
 	//if attribute didn't change don't set the field
 	if oldValue != newValue {
 		e.Get("__internal_object__").Set(toExportedFieldName(attributeName), newValue)
@@ -142,7 +133,7 @@ func (e *Element) addOneWay(obj *js.Object, value string) {
 	}
 }
 
-//addTwoWay gets an js Attribute object or an textNode object and its text value
+//addTwoWay gets an js Attribute object
 //than finds all data bindings and adds it to the twoWayDataBindings map
 func (e *Element) addTwoWay(obj *js.Object, value string) {
 	//twoWayDataBinding, obj is attribute DOM object and value is in {{}}
@@ -154,7 +145,14 @@ func (e *Element) addTwoWay(obj *js.Object, value string) {
 		consoleError("data binding", path.String(), "set more than once")
 	}
 	e.subpropertyProxySet(path)
-	mutationObserver := newMutationObserver(e.Get("__internal_object__"), obj, path)
+	field, ok := path.GetField(e.ObjValue.Type().Elem())
+	if !ok {
+		consoleError("Error: two way data binding path:", path.String(), "field doesn't exist")
+	}
+	if obj.Get("ownerElement").Get("nodeName").String() == "INPUT" {
+		addInputListener(e.Get("__internal_object__"), field.Type, obj, path)
+	}
+	mutationObserver := newMutationObserver(e.Get("__internal_object__"), field.Type, obj, path)
 	db := &twoWayDataBinding{Attribute: obj, Path: path, MutationObserver: mutationObserver}
 	e.twoWayDataBindings[path.String()] = db
 	db.SetAttr(e.Object)
@@ -187,14 +185,24 @@ func (e *Element) subpropertyProxyAdded(subpropertyPath attrPath) bool {
 	return false
 }
 
-func newMutationObserver(proxy *js.Object, attr *js.Object, path attrPath) *js.Object {
+func newMutationObserver(proxy *js.Object, fieldType reflect.Type, attr *js.Object, path attrPath) *js.Object {
 	attr.Set("__attr_path__", path.String())
 	mutationObserver := js.Global.Get("window").Get("MutationObserver").New(
 		js.MakeFunc(func(this *js.Object, arguments []*js.Object) interface{} {
 			newValue := attr.Get("value")
 			path := newAttrPath(attr.Get("__attr_path__").String())
-			if path.Get(proxy) != newValue {
-				path.Set(proxy, newValue)
+			convertedValue, err := convertJSType(fieldType, newValue)
+			if err != nil {
+				consoleError(
+					"Error converting value in setting the property",
+					path.String(),
+					": (", newValue, ")",
+					err,
+				)
+				return nil
+			}
+			if path.Get(proxy) != convertedValue {
+				path.Set(proxy, convertedValue)
 			}
 			return nil
 		}))
@@ -207,6 +215,25 @@ func newMutationObserver(proxy *js.Object, attr *js.Object, path attrPath) *js.O
 		},
 	)
 	return mutationObserver
+}
+
+func addInputListener(proxy *js.Object, fieldType reflect.Type, attr *js.Object, path attrPath) {
+	ownerElement := attr.Get("ownerElement")
+	ownerElement.Call(
+		"addEventListener",
+		"change",
+		js.MakeFunc(func(this *js.Object, arguments []*js.Object) interface{} {
+			attrName := attr.Get("name").String()
+
+			ownerElement.Get(attrName)
+			return nil
+		}))
+	ownerElement.Call(
+		"addEventListener",
+		"input",
+		js.MakeFunc(func(this *js.Object, arguments []*js.Object) interface{} {
+			return nil
+		}))
 }
 
 //newProxy creates an js Proxy object that can track what has been get or set to run dataBindings
@@ -225,14 +252,14 @@ func newProxy(customObject reflect.Value, pathPrefix attrPath) (proxy *js.Object
 			return subObj.Get(attributeName)
 		}),
 		"set": js.MakeFunc(func(this *js.Object, arguments []*js.Object) interface{} {
+			if isDataBindingExpression(arguments[2]) {
+				return true
+			}
 			attributeName := arguments[1].String()
 			path := append(pathPrefix, attributeName)
 			field, ok := path.GetField(customObject.Elem().Type())
 			//field doesn't exist
 			if !ok {
-				return true
-			}
-			if isDataBindingExpression(arguments[2]) {
 				return true
 			}
 			convertedValue, err := convertJSType(field.Type, arguments[2])
@@ -300,11 +327,6 @@ func convertJSType(t reflect.Type, value *js.Object) (val interface{}, err error
 		val, err = strconv.ParseUint(valString, 10, 32)
 	case reflect.Uint64:
 		val, err = strconv.ParseUint(valString, 10, 64)
-	case reflect.Struct:
-		if t.Name() == "Time" {
-			val, err = time.Parse(time.UnixDate, valString)
-			return
-		}
 	}
 	return
 }

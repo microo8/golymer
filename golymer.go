@@ -50,8 +50,8 @@ func setPrototypeCallbacks(prototype *js.Object) {
 	prototype.Set("attributeChangedCallback", js.MakeFunc(func(this *js.Object, arguments []*js.Object) interface{} {
 		this.Get("__internal_object__").Interface().(CustomElement).AttributeChangedCallback(
 			arguments[0].String(),
-			arguments[1],
-			arguments[2],
+			arguments[1].String(),
+			arguments[2].String(),
 			arguments[3].String(),
 		)
 		return nil

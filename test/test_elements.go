@@ -1,8 +1,6 @@
 package main
 
 import (
-	"time"
-
 	"github.com/microo8/golymer"
 )
 
@@ -28,12 +26,10 @@ const testElemTemplate = `
 	<h2 id="formHeading">[[inputObject.Heading]]</h2>
 	<input id="inputName" type="text" value="{{inputObject.Name}}">
 	<input id="inputAge" type="number" value="{{inputObject.Age}}">
-	<input id="inputDate" type="date" value="{{inputObject.Date}}">
 	<input id="inputActive" type="checkbox" checked="{{inputObject.Active}}">
 
 	<div id="divName" value="{{divObject.Name}}">[[divObject.Name]]</div>
 	<div id="divAge" value="{{divObject.Age}}">[[divObject.Age]]</div>
-	<div id="divDate" value="{{divObject.Date}}">[[divObject.Date]]</div>
 	<div id="divActive" checked="{{divObject.Active}}">[[divObject.Active]]</div>
 </form>
 `
@@ -62,13 +58,11 @@ func NewTestElem() *TestElem {
 		inputObject: &TestDataObject{
 			Age:    28,
 			Name:   "John",
-			Date:   time.Now(),
 			Active: true,
 		},
 		divObject: &TestDataObject{
 			Age:    28,
 			Name:   "John",
-			Date:   time.Now(),
 			Active: true,
 		},
 	}
@@ -81,7 +75,6 @@ type TestDataObject struct {
 	Heading string
 	Age     int
 	Name    string
-	Date    time.Time
 	Active  bool
 }
 
