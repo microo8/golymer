@@ -100,6 +100,9 @@ func (e *Element) scanElement(element *js.Object) {
 			}
 			e.addOneWay(attribute, attribute.Get("value").String())
 			e.addTwoWay(attribute, attribute.Get("value").String())
+			if attribute.Get("name").String()[:3] == "on-" {
+				e.addEventListener(attribute)
+			}
 		}
 	}
 	//find textChild with data binded value
@@ -156,6 +159,24 @@ func (e *Element) addTwoWay(obj *js.Object, value string) {
 	db := &twoWayDataBinding{Attribute: obj, Path: path, MutationObserver: mutationObserver}
 	e.twoWayDataBindings[path.String()] = db
 	db.SetAttr(e.Object)
+}
+
+func (e *Element) addEventListener(attr *js.Object) {
+	eventName := attr.Get("name").String()[3:]
+	methodName := attr.Get("value").String()
+	method := e.ObjValue.MethodByName(methodName)
+	if !method.IsValid() {
+		consoleError("Error on event listener", eventName, "binding, method", methodName, "doesn't exist")
+		return
+	}
+	e.Call("addEventListener", eventName, js.MakeFunc(func(this *js.Object, arguments []*js.Object) interface{} {
+		var in []reflect.Value
+		for _, arg := range arguments {
+			in = append(in, reflect.ValueOf(arg.Interface()))
+		}
+		method.Call(in)
+		return nil
+	}))
 }
 
 //subpropertyProxySet sets an js Proxy on an subproperty path to track get and set on its properties

@@ -296,6 +296,47 @@ func TestDataBindings(t *testing.T) {
 	})
 }
 
+//TestEvent tests event bindings
+func TestEvent(t *testing.T) {
+	testElem := js.Global.Get("document").Call("querySelector", "test-elem").Interface().(*TestElem)
+	testElemTwo := testElem.Children["two"].Interface().(*TestElemTwo)
+	t.Run("click event", func(t *testing.T) {
+		testElem.Children["heading"].Call("click")
+		if !testElem.HeadingClicked {
+			t.Error("heading on-click event is not binded")
+		}
+	})
+	t.Run("custom event", func(t *testing.T) {
+		event := golymer.NewCustomEvent("custom-event")
+		event.SetDetail("custom", "custom")
+		testElemTwo.DispatchEvent(event)
+		if !testElem.CustomEventDispatched {
+			t.Error("custom event of test-elem-two was not handled")
+		}
+	})
+}
+
+//TestSlot tests id the custom elements has children added to the elem shadowDOM
+func TestSlot(t *testing.T) {
+	testElem := js.Global.Get("document").Call("querySelector", "test-elem").Interface().(*TestElem)
+	t.Run("slotChild added", func(t *testing.T) {
+		if _, ok := testElem.Children["slotChild"]; !ok {
+			t.Error("slotChild not added")
+		}
+	})
+}
+
+//TestObserver tests if the observer for the observed field is executed
+func TestObserver(t *testing.T) {
+	testElem := js.Global.Get("document").Call("querySelector", "test-elem").Interface().(*TestElem)
+	t.Run("Observer test", func(t *testing.T) {
+		testElem.Observe = "observed"
+		if testElem.Observe2 != "observed" {
+			t.Error("observer function was not executed")
+		}
+	})
+}
+
 func test() {
 	//flag.Set("test.v", "true")
 	go testing.Main(func(pat, str string) (bool, error) { return true, nil },
@@ -307,6 +348,18 @@ func test() {
 			{
 				Name: "TestTypeAssertion",
 				F:    TestTypeAssertion,
+			},
+			{
+				Name: "TestEvent",
+				F:    TestEvent,
+			},
+			{
+				Name: "TestSlot",
+				F:    TestSlot,
+			},
+			{
+				Name: "TestObserver",
+				F:    TestObserver,
 			},
 			{
 				Name: "TestDataBindings",
