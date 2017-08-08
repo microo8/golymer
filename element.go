@@ -18,6 +18,7 @@ type CustomElement interface {
 	DisconnectedCallback()
 	AttributeChangedCallback(attributeName string, oldValue string, newValue string, namespace string)
 	AdoptedCallback(oldDocument, newDocument interface{})
+	DispatchEvent(customEvent *CustomEvent)
 }
 
 type oneWayDataBinding struct {
@@ -34,6 +35,10 @@ func (db oneWayDataBinding) SetAttr(obj *js.Object) {
 	}
 	if db.Attribute.Get("value") != js.Undefined {
 		db.Attribute.Set("value", value) //if it's an attribute
+		//if it is an input node, also set the property
+		if db.Attribute.Get("ownerElement").Get("nodeName").String() == "INPUT" {
+			db.Attribute.Get("ownerElement").Set(db.Attribute.Get("name").String(), value)
+		}
 		return
 	}
 	db.Attribute.Set("data", value) //if it's an text node
@@ -48,7 +53,11 @@ type twoWayDataBinding struct {
 func (db twoWayDataBinding) SetAttr(obj *js.Object) {
 	value := db.Path.Get(obj)
 	if db.Attribute.Get("value").String() != value.String() {
-		db.Attribute.Set("value", value.String())
+		db.Attribute.Set("value", value)
+		//if it is an input node, also set the property
+		if db.Attribute.Get("ownerElement").Get("nodeName").String() == "INPUT" {
+			db.Attribute.Get("ownerElement").Set(db.Attribute.Get("name").String(), value)
+		}
 	}
 }
 
@@ -62,7 +71,7 @@ type Element struct {
 	twoWayDataBindings map[string]*twoWayDataBinding
 }
 
-//ConnectedCallback ...
+//ConnectedCallback called when the element is attached to the DOM
 func (e *Element) ConnectedCallback() {
 	e.Call("attachShadow", map[string]interface{}{"mode": "open"})
 	e.Get("shadowRoot").Set("innerHTML", e.Template)
@@ -72,7 +81,7 @@ func (e *Element) ConnectedCallback() {
 	e.scanElement(e.Get("shadowRoot"))
 }
 
-//DisconnectedCallback ...
+//DisconnectedCallback called when the element is dettached from the DOM
 func (e *Element) DisconnectedCallback() {
 }
 
@@ -86,6 +95,11 @@ func (e *Element) AttributeChangedCallback(attributeName string, oldValue string
 
 //AdoptedCallback ...
 func (e *Element) AdoptedCallback(oldDocument, newDocument interface{}) {
+}
+
+//DispatchEvent dispatches an Event at the specified EventTarget, invoking the affected EventListeners in the appropriate order
+func (e *Element) DispatchEvent(ce *CustomEvent) {
+	e.Call("dispatchEvent", ce)
 }
 
 func (e *Element) scanElement(element *js.Object) {
@@ -169,14 +183,15 @@ func (e *Element) addEventListener(attr *js.Object) {
 		consoleError("Error on event listener", eventName, "binding, method", methodName, "doesn't exist")
 		return
 	}
-	e.Call("addEventListener", eventName, js.MakeFunc(func(this *js.Object, arguments []*js.Object) interface{} {
-		var in []reflect.Value
-		for _, arg := range arguments {
-			in = append(in, reflect.ValueOf(arg.Interface()))
-		}
-		method.Call(in)
-		return nil
-	}))
+	attr.Get("ownerElement").Call(
+		"addEventListener",
+		eventName,
+		js.MakeFunc(func(this *js.Object, arguments []*js.Object) interface{} {
+			event := NewEventFromMap(arguments[0].Interface().(map[string]interface{}))
+			in := []reflect.Value{reflect.ValueOf(event)}
+			method.Call(in)
+			return nil
+		}))
 }
 
 //subpropertyProxySet sets an js Proxy on an subproperty path to track get and set on its properties
@@ -240,21 +255,13 @@ func newMutationObserver(proxy *js.Object, fieldType reflect.Type, attr *js.Obje
 
 func addInputListener(proxy *js.Object, fieldType reflect.Type, attr *js.Object, path attrPath) {
 	ownerElement := attr.Get("ownerElement")
-	ownerElement.Call(
-		"addEventListener",
-		"change",
-		js.MakeFunc(func(this *js.Object, arguments []*js.Object) interface{} {
-			attrName := attr.Get("name").String()
-
-			ownerElement.Get(attrName)
-			return nil
-		}))
-	ownerElement.Call(
-		"addEventListener",
-		"input",
-		js.MakeFunc(func(this *js.Object, arguments []*js.Object) interface{} {
-			return nil
-		}))
+	handler := js.MakeFunc(func(this *js.Object, arguments []*js.Object) interface{} {
+		attrName := attr.Get("name").String()
+		path.Set(proxy, ownerElement.Get(attrName))
+		return nil
+	})
+	ownerElement.Call("addEventListener", "change", handler)
+	ownerElement.Call("addEventListener", "input", handler)
 }
 
 //newProxy creates an js Proxy object that can track what has been get or set to run dataBindings

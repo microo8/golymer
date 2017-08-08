@@ -261,16 +261,19 @@ func TestDataBindings(t *testing.T) {
 
 	t.Run("input subproperty twoWayDataBinding other way around", func(t *testing.T) {
 		testElem.Children["inputAge"].Set("value", 100)
+		testElem.Children["inputAge"].Call("dispatchEvent", js.Global.Get("Event").New("change"))
 		time.Sleep(time.Millisecond * mutationWait)
 		if testElem.inputObject.Age != 100 {
 			t.Errorf("not set inputObject.Age to 100, got %v", testElem.inputObject.Age)
 		}
 		testElem.Children["inputName"].Set("value", "Michael")
+		testElem.Children["inputName"].Call("dispatchEvent", js.Global.Get("Event").New("change"))
 		time.Sleep(time.Millisecond * mutationWait)
 		if testElem.inputObject.Name != "Michael" {
 			t.Errorf("inputName.value not set inputObject.Name to Michael, got %v", testElem.inputObject.Name)
 		}
 		testElem.Children["inputActive"].Set("checked", true)
+		testElem.Children["inputActive"].Call("dispatchEvent", js.Global.Get("Event").New("change"))
 		time.Sleep(time.Millisecond * mutationWait)
 		if testElem.inputObject.Active != true {
 			t.Errorf("not set inputObject.Active to true, got %v", testElem.inputObject.Active)
@@ -308,7 +311,7 @@ func TestEvent(t *testing.T) {
 	})
 	t.Run("custom event", func(t *testing.T) {
 		event := golymer.NewCustomEvent("custom-event")
-		event.SetDetail("custom", "custom")
+		event.Detail["custom"] = "custom"
 		testElemTwo.DispatchEvent(event)
 		if !testElem.CustomEventDispatched {
 			t.Error("custom event of test-elem-two was not handled")

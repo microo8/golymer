@@ -55,7 +55,7 @@ type TestElem struct {
 }
 
 //Click ...
-func (te *TestElem) Click(event interface{}) {
+func (te *TestElem) Click(event *golymer.Event) {
 	te.HeadingClicked = true
 }
 
@@ -64,7 +64,7 @@ func (te *TestElem) observerObserve(oldValue, newValue string) {
 }
 
 //CustomEventHandler handles the custom event dispatched from the test-elem-two
-func (te *TestElem) CustomEventHandler(event interface{}) {
+func (te *TestElem) CustomEventHandler(event *golymer.CustomEvent) {
 	te.CustomEventDispatched = true
 }
 
