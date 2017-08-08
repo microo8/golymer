@@ -187,7 +187,17 @@ func (e *Element) addEventListener(attr *js.Object) {
 		"addEventListener",
 		eventName,
 		js.MakeFunc(func(this *js.Object, arguments []*js.Object) interface{} {
-			event := NewEventFromMap(arguments[0].Interface().(map[string]interface{}))
+			if arguments[0].Get("constructor") == js.Global.Get("CustomEvent") {
+				print(arguments[0])
+				event := &CustomEvent{
+					Object: arguments[0],
+					Event:  &Event{Object: arguments[0]},
+				}
+				in := []reflect.Value{reflect.ValueOf(event)}
+				method.Call(in)
+				return nil
+			}
+			event := &Event{Object: arguments[0]}
 			in := []reflect.Value{reflect.ValueOf(event)}
 			method.Call(in)
 			return nil

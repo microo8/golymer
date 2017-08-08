@@ -53,26 +53,9 @@ func NewEvent(typ string) *Event {
 	}
 }
 
-//NewEventFromMap creates new event from an map representation
-func NewEventFromMap(m map[string]interface{}) *Event {
-	e := NewEvent(m["type"].(string))
-	e.Bubbles = m["bubbles"].(bool)
-	e.CancelBubble = m["cancelBubble"].(bool)
-	e.Cancelable = m["cancelable"].(bool)
-	e.Composed = m["composed"].(bool)
-	e.CurrentTarget = m["currentTarget"].(*js.Object)
-	e.DeepPath = m["deepPath"].([]*js.Object)
-	e.DefaultPrevented = m["defaultPrevented"].(bool)
-	e.EventPhase = m["eventPhase"].(int)
-	e.Target = m["target"].(*js.Object)
-	e.TimeStamp = m["timeStamp"].(time.Time)
-	e.Type = m["type"].(string)
-	e.IsTrusted = m["isTrusted"].(bool)
-	return e
-}
-
 //CustomEvent represents events initialized by an application for any purpose.
 type CustomEvent struct {
+	*js.Object
 	*Event
 	//Any data passed when initializing the event
 	Detail map[string]interface{} `js:"detail"`
@@ -87,18 +70,12 @@ func (ce *CustomEvent) WithDetail(key string, value interface{}) *CustomEvent {
 
 //NewCustomEvent creates new CustomEvent and sets its type name
 func NewCustomEvent(typ string) *CustomEvent {
+	customEvent := js.Global.Get("CustomEvent").New(typ)
 	return &CustomEvent{
+		Object: customEvent,
 		Event: &Event{
-			Object: js.Global.Get("CustomEvent").New(typ),
+			Object: customEvent,
 		},
 		Detail: make(map[string]interface{}),
-	}
-}
-
-//NewCustomEventFromMap creates new event from an map representation
-func NewCustomEventFromMap(m map[string]interface{}) *CustomEvent {
-	return &CustomEvent{
-		Event:  NewEventFromMap(m),
-		Detail: m["detail"].(map[string]interface{}),
 	}
 }

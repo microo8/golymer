@@ -52,6 +52,7 @@ type TestElem struct {
 	Observe               string
 	Observe2              string
 	CustomEventDispatched bool
+	CustomEventDetail     string
 }
 
 //Click ...
@@ -65,6 +66,7 @@ func (te *TestElem) observerObserve(oldValue, newValue string) {
 
 //CustomEventHandler handles the custom event dispatched from the test-elem-two
 func (te *TestElem) CustomEventHandler(event *golymer.CustomEvent) {
+	te.CustomEventDetail = event.Detail["custom"].(string)
 	te.CustomEventDispatched = true
 }
 
