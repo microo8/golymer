@@ -310,7 +310,8 @@ func TestEvent(t *testing.T) {
 		}
 	})
 	t.Run("custom event", func(t *testing.T) {
-		event := golymer.NewCustomEvent("custom-event").WithDetail("custom", "custom")
+		event := golymer.NewEvent("custom-event").WithDetail("custom", "custom")
+		print(event)
 		testElemTwo.DispatchEvent(event)
 		if !testElem.CustomEventDispatched {
 			t.Error("custom event of test-elem-two was not handled")

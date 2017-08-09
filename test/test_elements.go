@@ -65,7 +65,7 @@ func (te *TestElem) observerObserve(oldValue, newValue string) {
 }
 
 //CustomEventHandler handles the custom event dispatched from the test-elem-two
-func (te *TestElem) CustomEventHandler(event *golymer.CustomEvent) {
+func (te *TestElem) CustomEventHandler(event *golymer.Event) {
 	te.CustomEventDetail = event.Detail["custom"].(string)
 	te.CustomEventDispatched = true
 }

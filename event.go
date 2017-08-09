@@ -11,9 +11,6 @@ type Event struct {
 	*js.Object
 	//A Boolean indicating whether the event bubbles up through the DOM or not.
 	Bubbles bool `js:"bubbles"`
-	//A historical alias to Event.stopPropagation().
-	//Setting its value to true before returning from an event handler prevents propagation of the event.
-	CancelBubble bool `js:"cancelBubble"`
 	//A Boolean indicating whether the event is cancelable.
 	Cancelable bool `js:"cancelable"`
 	//A Boolean value indicating whether or not the event can bubble across the boundary between the shadow DOM and the regular DOM.
@@ -26,6 +23,8 @@ type Event struct {
 	DeepPath []*js.Object `js:"deepPath"`
 	//Indicates whether or not event.preventDefault() has been called on the event.
 	DefaultPrevented bool `js:"defaultPrevented"`
+	//Any data passed when initializing the event
+	Detail map[string]interface{} `js:"detail"`
 	//Indicates which phase of the event flow is being processed.
 	EventPhase int `js:"eventPhase"`
 	//A reference to the target to which the event was originally dispatched.
@@ -48,34 +47,13 @@ func (e *Event) StopPropagation() {
 
 //NewEvent creates new Event and sets its type name
 func NewEvent(typ string) *Event {
-	return &Event{
-		Object: js.Global.Get("Event").New(typ),
-	}
-}
-
-//CustomEvent represents events initialized by an application for any purpose.
-type CustomEvent struct {
-	*js.Object
-	*Event
-	//Any data passed when initializing the event
-	Detail map[string]interface{} `js:"detail"`
+	e := &Event{Object: js.Global.Get("CustomEvent").New(typ)}
+	return e
 }
 
 //WithDetail sets new key-value pair to the detail data and returns the CustomEvent
 //TODO maybe it has to return an new event?
-func (ce *CustomEvent) WithDetail(key string, value interface{}) *CustomEvent {
-	ce.Detail[key] = value
-	return ce
-}
-
-//NewCustomEvent creates new CustomEvent and sets its type name
-func NewCustomEvent(typ string) *CustomEvent {
-	customEvent := js.Global.Get("CustomEvent").New(typ)
-	return &CustomEvent{
-		Object: customEvent,
-		Event: &Event{
-			Object: customEvent,
-		},
-		Detail: make(map[string]interface{}),
-	}
+func (e *Event) WithDetail(key string, value interface{}) *Event {
+	e.Detail[key] = value
+	return e
 }

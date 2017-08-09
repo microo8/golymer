@@ -18,7 +18,7 @@ type CustomElement interface {
 	DisconnectedCallback()
 	AttributeChangedCallback(attributeName string, oldValue string, newValue string, namespace string)
 	AdoptedCallback(oldDocument, newDocument interface{})
-	DispatchEvent(customEvent *CustomEvent)
+	DispatchEvent(customEvent *Event)
 }
 
 type oneWayDataBinding struct {
@@ -98,7 +98,7 @@ func (e *Element) AdoptedCallback(oldDocument, newDocument interface{}) {
 }
 
 //DispatchEvent dispatches an Event at the specified EventTarget, invoking the affected EventListeners in the appropriate order
-func (e *Element) DispatchEvent(ce *CustomEvent) {
+func (e *Element) DispatchEvent(ce *Event) {
 	e.Call("dispatchEvent", ce)
 }
 
@@ -187,16 +187,7 @@ func (e *Element) addEventListener(attr *js.Object) {
 		"addEventListener",
 		eventName,
 		js.MakeFunc(func(this *js.Object, arguments []*js.Object) interface{} {
-			if arguments[0].Get("constructor") == js.Global.Get("CustomEvent") {
-				print(arguments[0])
-				event := &CustomEvent{
-					Object: arguments[0],
-					Event:  &Event{Object: arguments[0]},
-				}
-				in := []reflect.Value{reflect.ValueOf(event)}
-				method.Call(in)
-				return nil
-			}
+			print(arguments[0])
 			event := &Event{Object: arguments[0]}
 			in := []reflect.Value{reflect.ValueOf(event)}
 			method.Call(in)
