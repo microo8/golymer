@@ -1,5 +1,3 @@
-// +build js
-
 package main
 
 import (
@@ -11,7 +9,7 @@ import (
 	"github.com/microo8/golymer"
 )
 
-const mutationWait = 50
+const mutationWait = 1
 
 //testing constructors
 
@@ -66,6 +64,7 @@ func TestTypeAssertion(t *testing.T) {
 		t.Fatalf("DOM node cannot be type-asserted to CustomElement interface")
 	}
 	testElem, ok := js.Global.Get("document").Call("querySelector", "test-elem").Interface().(*TestElem)
+	testElem.ValidateDataBindings()
 	if !ok {
 		t.Fatalf("DOM node cannot be type-asserted to *TestElem")
 	}
@@ -75,7 +74,7 @@ func TestTypeAssertion(t *testing.T) {
 	}
 	_, ok = two.Interface().(*TestElemTwo)
 	if !ok {
-		t.Fatalf("child 'tow' DOM node cannot be type-asserted to *TestElemTwo")
+		t.Fatalf("child 'two' DOM node cannot be type-asserted to *TestElemTwo")
 	}
 }
 
@@ -90,7 +89,6 @@ func TestDataBindings(t *testing.T) {
 			t.Error("setAttribute has set non-existing attribute on test-elem tag")
 		}
 	})
-
 	t.Run("BackgroundColor", func(t *testing.T) {
 		testElem.BackgroundColor = "yellow"
 		if testElem.Children["meh"].Get("style").Get("backgroundColor").String() != "yellow" {
@@ -211,6 +209,9 @@ func TestDataBindings(t *testing.T) {
 		if testElem.Children["formHeading"].Get("innerHTML").String() != "form" {
 			t.Errorf("setting subproperty inputObject.Heading didn't set the oneWayDataBinding")
 		}
+		if testElem.Children["formHeading2"].Get("innerHTML").String() != "form" {
+			t.Errorf("setting subproperty inputObject.Heading didn't set the oneWayDataBinding")
+		}
 	})
 
 	t.Run("input subproperty twoWayDataBinding", func(t *testing.T) {
@@ -309,11 +310,59 @@ func TestDataBindings(t *testing.T) {
 		if testElem.Children["formHeading"].Get("innerHTML").String() != "foo" {
 			t.Errorf("setting whole inputObject didn't set formHeading")
 		}
+		if testElem.Children["formHeading2"].Get("innerHTML").String() != "foo" {
+			t.Errorf("setting whole inputObject didn't set formHeading2")
+		}
 		if testElem.Children["inputAge"].Get("value").Int() != 10000 {
 			t.Errorf("setting whole inputObject didn't set inputAge")
 		}
 		if testElem.Children["inputName"].Get("value").String() != "bar" {
 			t.Errorf("setting whole inputObject didn't set inputName")
+		}
+	})
+
+	t.Run("after obj setting input subproperty twoWayDataBinding other way around", func(t *testing.T) {
+		testElem.Children["inputAge"].Set("value", 100)
+		testElem.Children["inputAge"].Call("dispatchEvent", js.Global.Get("Event").New("change"))
+		time.Sleep(time.Millisecond * mutationWait)
+		if testElem.inputObject.Age != 100 {
+			t.Errorf("not set inputObject.Age to 100, got %v", testElem.inputObject.Age)
+		}
+		testElem.Children["inputName"].Set("value", "Michael")
+		testElem.Children["inputName"].Call("dispatchEvent", js.Global.Get("Event").New("change"))
+		time.Sleep(time.Millisecond * mutationWait)
+		if testElem.inputObject.Name != "Michael" {
+			t.Errorf("inputName.value not set inputObject.Name to Michael, got %v", testElem.inputObject.Name)
+		}
+		testElem.Children["inputActive"].Set("checked", true)
+		testElem.Children["inputActive"].Call("dispatchEvent", js.Global.Get("Event").New("change"))
+		time.Sleep(time.Millisecond * mutationWait)
+		if testElem.inputObject.Active != true {
+			t.Errorf("not set inputObject.Active to true, got %v", testElem.inputObject.Active)
+		}
+	})
+
+	t.Run("after obj setting input subproperty twoWayDataBinding", func(t *testing.T) {
+		testElem.inputObject.Age = 30
+		if testElem.Children["inputAge"].Get("value").Int() != 30 {
+			t.Errorf("setting inputObject.Age to 30 doesn't set the input value. got %v(%T)",
+				testElem.Children["inputAge"].Get("value").Interface(),
+				testElem.Children["inputAge"].Get("value").Interface(),
+			)
+		}
+		testElem.inputObject.Name = "George"
+		if testElem.Children["inputName"].Get("value").String() != "George" {
+			t.Errorf("setting inputObject.Name to George doesn't set the input value. got %v(%T)",
+				testElem.Children["inputName"].Get("value").Interface(),
+				testElem.Children["inputName"].Get("value").Interface(),
+			)
+		}
+		testElem.inputObject.Active = false
+		if testElem.Children["inputActive"].Get("checked").Bool() != false {
+			t.Errorf("setting inputObject.Active to false doesn't set the input value. got %v(%T)",
+				testElem.Children["inputActive"].Get("checked").Interface(),
+				testElem.Children["inputActive"].Get("checked").Interface(),
+			)
 		}
 	})
 }

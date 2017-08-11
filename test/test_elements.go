@@ -1,5 +1,3 @@
-// +build js
-
 package main
 
 import (
@@ -28,6 +26,7 @@ const testElemTemplate = `
 
 <form>
 	<h2 id="formHeading">[[inputObject.Heading]]</h2>
+	<h2 id="formHeading2">[[inputObject.Heading]]</h2>
 	<input id="inputName" type="text" value="{{inputObject.Name}}">
 	<input id="inputAge" type="number" value="{{inputObject.Age}}">
 	<input id="inputActive" type="checkbox" checked="{{inputObject.Active}}">
