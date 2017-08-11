@@ -1,3 +1,5 @@
+// +build js
+
 package golymer
 
 import (
@@ -63,4 +65,17 @@ func (ap attrPath) GetField(objType reflect.Type) (reflect.StructField, bool) {
 //String returns an string representation of the path
 func (ap attrPath) String() string {
 	return strings.Join(ap, ".")
+}
+
+//StartsWith return true if the path starts with another path
+func (ap attrPath) StartsWith(p attrPath) bool {
+	if len(p) > len(ap) {
+		return false
+	}
+	for i := range p {
+		if ap[i] != p[i] {
+			return false
+		}
+	}
+	return true
 }

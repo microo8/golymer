@@ -1,3 +1,5 @@
+// +build js
+
 package main
 
 import (
@@ -297,6 +299,23 @@ func TestDataBindings(t *testing.T) {
 			t.Errorf("not set divObject.Active to true, got %v", testElem.divObject.Active)
 		}
 	})
+
+	t.Run("setting whole object", func(t *testing.T) {
+		testElem.inputObject = &TestDataObject{
+			Heading: "foo",
+			Age:     10000,
+			Name:    "bar",
+		}
+		if testElem.Children["formHeading"].Get("innerHTML").String() != "foo" {
+			t.Errorf("setting whole inputObject didn't set formHeading")
+		}
+		if testElem.Children["inputAge"].Get("value").Int() != 10000 {
+			t.Errorf("setting whole inputObject didn't set inputAge")
+		}
+		if testElem.Children["inputName"].Get("value").String() != "bar" {
+			t.Errorf("setting whole inputObject didn't set inputName")
+		}
+	})
 }
 
 //TestEvent tests event bindings
@@ -310,8 +329,15 @@ func TestEvent(t *testing.T) {
 		}
 	})
 	t.Run("custom event", func(t *testing.T) {
-		event := golymer.NewEvent("custom-event").WithDetail("custom", "custom")
-		print(event)
+		event := golymer.NewEvent(
+			"custom-event",
+			map[string]interface{}{
+				"detail": map[string]interface{}{
+					"custom": "custom",
+				},
+				"bubbles": true,
+			},
+		)
 		testElemTwo.DispatchEvent(event)
 		if !testElem.CustomEventDispatched {
 			t.Error("custom event of test-elem-two was not handled")

@@ -1,3 +1,5 @@
+// +build js
+
 package golymer
 
 import (
@@ -31,6 +33,7 @@ func (db oneWayDataBinding) SetAttr(obj *js.Object) {
 	value := db.Str
 	for _, path := range db.Paths {
 		fieldValue := path.Get(obj)
+		print(path.String(), fieldValue, db.Attribute)
 		value = strings.Replace(value, "[["+path.String()+"]]", fieldValue.String(), -1)
 	}
 	if db.Attribute.Get("value") != js.Undefined {
@@ -52,12 +55,13 @@ type twoWayDataBinding struct {
 
 func (db twoWayDataBinding) SetAttr(obj *js.Object) {
 	value := db.Path.Get(obj)
-	if db.Attribute.Get("value").String() != value.String() {
-		db.Attribute.Set("value", value)
-		//if it is an input node, also set the property
-		if db.Attribute.Get("ownerElement").Get("nodeName").String() == "INPUT" {
-			db.Attribute.Get("ownerElement").Set(db.Attribute.Get("name").String(), value)
-		}
+	if db.Attribute.Get("value").String() == value.String() {
+		return
+	}
+	db.Attribute.Set("value", value)
+	//if it is an input node, also set the property
+	if db.Attribute.Get("ownerElement").Get("nodeName").String() == "INPUT" {
+		db.Attribute.Get("ownerElement").Set(db.Attribute.Get("name").String(), value)
 	}
 }
 
@@ -89,7 +93,27 @@ func (e *Element) DisconnectedCallback() {
 func (e *Element) AttributeChangedCallback(attributeName string, oldValue string, newValue string, namespace string) {
 	//if attribute didn't change don't set the field
 	if oldValue != newValue {
-		e.Get("__internal_object__").Set(toExportedFieldName(attributeName), newValue)
+		exportedFieldName := toExportedFieldName(attributeName)
+		path := newAttrPath(exportedFieldName)
+		field, ok := path.GetField(e.ObjValue.Elem().Type())
+		//field doesn't exist
+		if !ok {
+			return
+		}
+		if isDataBindingExpression(newValue) {
+			return
+		}
+		convertedValue, err := convertJSType(field.Type, js.InternalObject(newValue))
+		if err != nil {
+			consoleError(
+				"Error converting value in setting the property",
+				path.String(),
+				": (", newValue, ")",
+				err,
+			)
+			return
+		}
+		e.Get("__internal_object__").Set(exportedFieldName, convertedValue)
 	}
 }
 
@@ -187,7 +211,6 @@ func (e *Element) addEventListener(attr *js.Object) {
 		"addEventListener",
 		eventName,
 		js.MakeFunc(func(this *js.Object, arguments []*js.Object) interface{} {
-			print(arguments[0])
 			event := &Event{Object: arguments[0]}
 			in := []reflect.Value{reflect.ValueOf(event)}
 			method.Call(in)
@@ -281,9 +304,6 @@ func newProxy(customObject reflect.Value, pathPrefix attrPath) (proxy *js.Object
 			return subObj.Get(attributeName)
 		}),
 		"set": js.MakeFunc(func(this *js.Object, arguments []*js.Object) interface{} {
-			if isDataBindingExpression(arguments[2]) {
-				return true
-			}
 			attributeName := arguments[1].String()
 			path := append(pathPrefix, attributeName)
 			field, ok := path.GetField(customObject.Elem().Type())
@@ -291,17 +311,7 @@ func newProxy(customObject reflect.Value, pathPrefix attrPath) (proxy *js.Object
 			if !ok {
 				return true
 			}
-			convertedValue, err := convertJSType(field.Type, arguments[2])
-			if err != nil {
-				consoleError(
-					"Error converting value in setting the property",
-					path.String(),
-					": (", arguments[2], ")",
-					err,
-				)
-				return true
-			}
-			subObj.Set(attributeName, convertedValue)
+			subObj.Set(attributeName, arguments[2])
 			//if it's exported and isn't a subproperty set also the tag attribute
 			if len(pathPrefix) == 0 && field.PkgPath == "" {
 				instance := subObj.Get("Element").Get("Object")
@@ -309,13 +319,20 @@ func newProxy(customObject reflect.Value, pathPrefix attrPath) (proxy *js.Object
 			}
 			//sets binded attributes of the children in template
 			elem := customObject.Elem().FieldByName("Element").Interface().(Element)
-			if dbs, ok := elem.oneWayDataBindings[path.String()]; ok {
-				for _, db := range dbs {
+			for p := range elem.oneWayDataBindings {
+				if !newAttrPath(p).StartsWith(path) {
+					continue
+				}
+				for _, db := range elem.oneWayDataBindings[p] {
+					print("setting", p)
 					db.SetAttr(internalCustomObject)
 				}
 			}
-			if db, ok := elem.twoWayDataBindings[path.String()]; ok {
-				db.SetAttr(internalCustomObject)
+			for p := range elem.twoWayDataBindings {
+				if !newAttrPath(p).StartsWith(path) {
+					continue
+				}
+				elem.twoWayDataBindings[p].SetAttr(internalCustomObject)
 			}
 			return true
 		}),
@@ -360,14 +377,10 @@ func convertJSType(t reflect.Type, value *js.Object) (val interface{}, err error
 	return
 }
 
-func isDataBindingExpression(val *js.Object) bool {
-	valString, ok := val.Interface().(string)
-	if !ok {
+func isDataBindingExpression(val string) bool {
+	if len(val) < 4 {
 		return false
 	}
-	if len(valString) < 4 {
-		return false
-	}
-	return (valString[:2] == "{{" && valString[len(valString)-2:] == "}}") ||
-		(valString[:2] == "||" && valString[len(valString)-2:] == "||")
+	return (val[:2] == "{{" && val[len(val)-2:] == "}}") ||
+		(val[:2] == "[[" && val[len(val)-2:] == "]]")
 }

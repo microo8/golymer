@@ -1,3 +1,5 @@
+// +build js
+
 package golymer
 
 import (
@@ -40,20 +42,11 @@ type Event struct {
 	IsTrusted bool `js:"isTrusted"`
 }
 
+func NewEvent(typ string, customEventInit map[string]interface{}) *Event {
+	return &Event{Object: js.Global.Get("CustomEvent").New(typ, customEventInit)}
+}
+
 //StopPropagation prevents further propagation of the current event in the capturing and bubbling phases
 func (e *Event) StopPropagation() {
 	e.Call("stopPropagation")
-}
-
-//NewEvent creates new Event and sets its type name
-func NewEvent(typ string) *Event {
-	e := &Event{Object: js.Global.Get("CustomEvent").New(typ)}
-	return e
-}
-
-//WithDetail sets new key-value pair to the detail data and returns the CustomEvent
-//TODO maybe it has to return an new event?
-func (e *Event) WithDetail(key string, value interface{}) *Event {
-	e.Detail[key] = value
-	return e
 }
