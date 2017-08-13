@@ -40,6 +40,7 @@ type Event struct {
 	IsTrusted bool `js:"isTrusted"`
 }
 
+//NewEvent creates new event
 func NewEvent(typ string, customEventInit map[string]interface{}) *Event {
 	return &Event{Object: js.Global.Get("CustomEvent").New(typ, customEventInit)}
 }
