@@ -9,8 +9,6 @@ import (
 	"github.com/microo8/golymer"
 )
 
-const mutationWait = 1
-
 //testing constructors
 
 //TestA ...
@@ -64,7 +62,6 @@ func TestTypeAssertion(t *testing.T) {
 		t.Fatalf("DOM node cannot be type-asserted to CustomElement interface")
 	}
 	testElem, ok := js.Global.Get("document").Call("querySelector", "test-elem").Interface().(*TestElem)
-	testElem.ValidateDataBindings()
 	if !ok {
 		t.Fatalf("DOM node cannot be type-asserted to *TestElem")
 	}
@@ -143,7 +140,7 @@ func TestDataBindings(t *testing.T) {
 					testElem.Children["heading"].Call("getAttribute", "height").Interface(),
 				)
 			}
-			time.Sleep(time.Millisecond * mutationWait)
+			time.Sleep(time.Millisecond)
 			if testElem.Value != value {
 				t.Errorf(
 					"two way databinding error: elem two value set but test-elem.Value is not %v (%T), value is: %v (%T)",
@@ -160,7 +157,7 @@ func TestDataBindings(t *testing.T) {
 		values := []int{123, -1233, 0, 12321312}
 		for _, value := range values {
 			testElemTwo.Counter = value
-			time.Sleep(time.Millisecond * mutationWait)
+			time.Sleep(time.Millisecond)
 			if testElem.intValue != value {
 				t.Errorf("two way databinding value error: want %v(%T) got %v(%T)", value, value, testElem.intValue, testElem.intValue)
 			}
@@ -171,7 +168,7 @@ func TestDataBindings(t *testing.T) {
 		values := []int{123, -1233, 0, 12321312}
 		for _, value := range values {
 			testElem.Children["heading"].Call("setAttribute", "int", value)
-			time.Sleep(time.Millisecond * mutationWait)
+			time.Sleep(time.Millisecond)
 			if testElem.intValue2 != value {
 				t.Errorf("two way databinding value error: want %v(%T) got %v(%T)", value, value, testElem.intValue, testElem.intValue)
 			}
@@ -265,19 +262,19 @@ func TestDataBindings(t *testing.T) {
 	t.Run("input subproperty twoWayDataBinding other way around", func(t *testing.T) {
 		testElem.Children["inputAge"].Set("value", 100)
 		testElem.Children["inputAge"].Call("dispatchEvent", js.Global.Get("Event").New("change"))
-		time.Sleep(time.Millisecond * mutationWait)
+		time.Sleep(time.Millisecond)
 		if testElem.inputObject.Age != 100 {
 			t.Errorf("not set inputObject.Age to 100, got %v", testElem.inputObject.Age)
 		}
 		testElem.Children["inputName"].Set("value", "Michael")
 		testElem.Children["inputName"].Call("dispatchEvent", js.Global.Get("Event").New("change"))
-		time.Sleep(time.Millisecond * mutationWait)
+		time.Sleep(time.Millisecond)
 		if testElem.inputObject.Name != "Michael" {
 			t.Errorf("inputName.value not set inputObject.Name to Michael, got %v", testElem.inputObject.Name)
 		}
 		testElem.Children["inputActive"].Set("checked", true)
 		testElem.Children["inputActive"].Call("dispatchEvent", js.Global.Get("Event").New("change"))
-		time.Sleep(time.Millisecond * mutationWait)
+		time.Sleep(time.Millisecond)
 		if testElem.inputObject.Active != true {
 			t.Errorf("not set inputObject.Active to true, got %v", testElem.inputObject.Active)
 		}
@@ -285,17 +282,17 @@ func TestDataBindings(t *testing.T) {
 
 	t.Run("div subproperty twoWayDataBinding other way around", func(t *testing.T) {
 		testElem.Children["divAge"].Call("setAttribute", "value", 100)
-		time.Sleep(time.Millisecond * mutationWait)
+		time.Sleep(time.Millisecond)
 		if testElem.divObject.Age != 100 {
 			t.Errorf("not set divObject.Age to 100, got %v", testElem.divObject.Age)
 		}
 		testElem.Children["divName"].Call("setAttribute", "value", "Michael")
-		time.Sleep(time.Millisecond * mutationWait)
+		time.Sleep(time.Millisecond)
 		if testElem.divObject.Name != "Michael" {
 			t.Errorf("divName.value not set divObject.Name to Michael, got %v", testElem.divObject.Name)
 		}
 		testElem.Children["divActive"].Call("setAttribute", "checked", true)
-		time.Sleep(time.Millisecond * mutationWait)
+		time.Sleep(time.Millisecond)
 		if testElem.divObject.Active != true {
 			t.Errorf("not set divObject.Active to true, got %v", testElem.divObject.Active)
 		}
@@ -324,19 +321,19 @@ func TestDataBindings(t *testing.T) {
 	t.Run("after obj setting input subproperty twoWayDataBinding other way around", func(t *testing.T) {
 		testElem.Children["inputAge"].Set("value", 100)
 		testElem.Children["inputAge"].Call("dispatchEvent", js.Global.Get("Event").New("change"))
-		time.Sleep(time.Millisecond * mutationWait)
+		time.Sleep(time.Millisecond)
 		if testElem.inputObject.Age != 100 {
 			t.Errorf("not set inputObject.Age to 100, got %v", testElem.inputObject.Age)
 		}
 		testElem.Children["inputName"].Set("value", "Michael")
 		testElem.Children["inputName"].Call("dispatchEvent", js.Global.Get("Event").New("change"))
-		time.Sleep(time.Millisecond * mutationWait)
+		time.Sleep(time.Millisecond)
 		if testElem.inputObject.Name != "Michael" {
 			t.Errorf("inputName.value not set inputObject.Name to Michael, got %v", testElem.inputObject.Name)
 		}
 		testElem.Children["inputActive"].Set("checked", true)
 		testElem.Children["inputActive"].Call("dispatchEvent", js.Global.Get("Event").New("change"))
-		time.Sleep(time.Millisecond * mutationWait)
+		time.Sleep(time.Millisecond)
 		if testElem.inputObject.Active != true {
 			t.Errorf("not set inputObject.Active to true, got %v", testElem.inputObject.Active)
 		}

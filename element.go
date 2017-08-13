@@ -72,32 +72,6 @@ type Element struct {
 	twoWayDataBindings map[string]*twoWayDataBinding
 }
 
-func (e *Element) ValidateDataBindings() {
-	for p, dbs := range e.oneWayDataBindings {
-		for _, db := range dbs {
-			found := false
-			for _, path := range db.paths {
-				if p == path {
-					found = true
-					break
-				}
-			}
-			if !found {
-				paths := "["
-				for _, path := range db.paths {
-					paths += path + ","
-				}
-				paths += "]"
-				panic("data binding for path: " + p + " doesn't have it in the paths " + paths)
-			}
-		}
-	}
-}
-
-func (e *Element) PrintOneWay() {
-	print(js.Global.Get("JSON").Call("stringify", e.oneWayDataBindings, nil, 2))
-}
-
 //ConnectedCallback called when the element is attached to the DOM
 func (e *Element) ConnectedCallback() {
 	e.Call("attachShadow", map[string]interface{}{"mode": "open"})
@@ -106,7 +80,6 @@ func (e *Element) ConnectedCallback() {
 	e.oneWayDataBindings = make(map[string][]*oneWayDataBinding)
 	e.twoWayDataBindings = make(map[string]*twoWayDataBinding)
 	e.scanElement(e.Get("shadowRoot"))
-	e.ValidateDataBindings()
 }
 
 //DisconnectedCallback called when the element is dettached from the DOM
