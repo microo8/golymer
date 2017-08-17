@@ -27,14 +27,15 @@ type oneWayDataBinding struct {
 	paths     []string
 }
 
-func (db oneWayDataBinding) SetAttr(obj *js.Object) {
+func (db oneWayDataBinding) setAttr(obj *js.Object) {
 	value := db.str
 	for _, path := range db.paths {
 		fieldValue := newAttrPath(path).Get(obj)
 		value = strings.Replace(value, "[["+path+"]]", fieldValue.String(), -1)
 	}
 	if db.attribute.Get("value") != js.Undefined {
-		db.attribute.Set("value", value) //if it's an attribute
+		//if it's an attribute
+		db.attribute.Set("value", value)
 		//if it is an input node, also set the property
 		if db.attribute.Get("ownerElement").Get("nodeName").String() == "INPUT" {
 			db.attribute.Get("ownerElement").Set(db.attribute.Get("name").String(), value)
@@ -50,7 +51,7 @@ type twoWayDataBinding struct {
 	mutationObserver *js.Object
 }
 
-func (db twoWayDataBinding) SetAttr(obj *js.Object) {
+func (db twoWayDataBinding) setAttr(obj *js.Object) {
 	value := newAttrPath(db.path).Get(obj)
 	if db.attribute.Get("value").String() == value.String() {
 		return
@@ -159,15 +160,12 @@ func (e *Element) scanElement(element *js.Object) {
 //addOneWay gets an js Attribute object or an textNode object and its text value
 //than finds all data bindings and adds it to the oneWayDataBindings map
 func (e *Element) addOneWay(obj *js.Object, value string) {
-	var bindedPaths []string
-	for _, path := range oneWayFindAll(value) {
-		bindedPaths = append(bindedPaths, path)
-	}
+	bindedPaths := oneWayFindAll(value)
 	for _, bindedPath := range bindedPaths {
 		e.subpropertyProxySet(bindedPath)
 		db := &oneWayDataBinding{str: value, attribute: obj, paths: bindedPaths}
 		e.oneWayDataBindings[bindedPath] = append(e.oneWayDataBindings[bindedPath], db)
-		db.SetAttr(e.Object)
+		db.setAttr(e.Object)
 	}
 }
 
@@ -186,6 +184,7 @@ func (e *Element) addTwoWay(obj *js.Object, value string) {
 	field, ok := newAttrPath(path).GetField(e.ObjValue.Type().Elem())
 	if !ok {
 		consoleError("Error: two way data binding path:", path, "field doesn't exist")
+		return
 	}
 	if obj.Get("ownerElement").Get("nodeName").String() == "INPUT" {
 		addInputListener(e.Get("__internal_object__"), field.Type, obj, newAttrPath(path))
@@ -193,7 +192,7 @@ func (e *Element) addTwoWay(obj *js.Object, value string) {
 	mutationObserver := newMutationObserver(e.Get("__internal_object__"), field.Type, obj, path)
 	db := &twoWayDataBinding{attribute: obj, path: path, mutationObserver: mutationObserver}
 	e.twoWayDataBindings[path] = db
-	db.SetAttr(e.Object)
+	db.setAttr(e.Object)
 }
 
 func (e *Element) addEventListener(attr *js.Object) {
@@ -217,30 +216,19 @@ func (e *Element) addEventListener(attr *js.Object) {
 
 //subpropertyProxySet sets an js Proxy on an subproperty path to track get and set on its properties
 func (e *Element) subpropertyProxySet(bindedPathString string) {
-	bindedPath := newAttrPath(bindedPathString)
-	subpropertyPath := bindedPath[:len(bindedPath)-1]
-	if len(subpropertyPath) > 0 && !e.subpropertyProxyAdded(subpropertyPath) {
+	subpropertyPath := newAttrPath(bindedPathString)
+	subpropertyPath = subpropertyPath[:len(subpropertyPath)-1]
+	for ; len(subpropertyPath) > 0; subpropertyPath = subpropertyPath[:len(subpropertyPath)-1] {
+		if e.subpropertyProxyAdded(subpropertyPath) {
+			continue
+		}
 		proxy := newProxy(e.ObjValue, subpropertyPath)
 		subpropertyPath.Set(js.InternalObject(e.ObjValue).Get("ptr"), proxy)
 	}
 }
 
 func (e *Element) subpropertyProxyAdded(subpropertyPath attrPath) bool {
-	for p := range e.oneWayDataBindings {
-		subPath := newAttrPath(p)
-		subPath = subPath[:len(subPath)-1]
-		if subPath.String() == subpropertyPath.String() {
-			return true
-		}
-	}
-	for p := range e.twoWayDataBindings {
-		subPath := newAttrPath(p)
-		subPath = subPath[:len(subPath)-1]
-		if subPath.String() == subpropertyPath.String() {
-			return true
-		}
-	}
-	return false
+	return subpropertyPath.Get(e.Get("__internal_object__")).Get("__is_proxy__").Bool()
 }
 
 func newMutationObserver(proxy *js.Object, fieldType reflect.Type, attr *js.Object, path string) *js.Object {
@@ -296,6 +284,9 @@ func newProxy(customObject reflect.Value, pathPrefix attrPath) (proxy *js.Object
 	handler := map[string]interface{}{
 		"get": js.MakeFunc(func(this *js.Object, arguments []*js.Object) interface{} {
 			attributeName := arguments[1].String()
+			if attributeName == "__is_proxy__" {
+				return true
+			}
 			if attributeName == "__internal_object__" || attributeName == "$val" {
 				return proxy
 			}
@@ -310,26 +301,42 @@ func newProxy(customObject reflect.Value, pathPrefix attrPath) (proxy *js.Object
 				return true
 			}
 			subObj.Set(attributeName, arguments[2])
-			//if it's exported and isn't a subproperty set also the tag attribute
-			if len(pathPrefix) == 0 && field.PkgPath == "" {
-				instance := subObj.Get("Element").Get("Object")
-				instance.Call("setAttribute", camelCaseToKebab(attributeName), arguments[2])
+			elem := customObject.Elem().FieldByName("Element").Interface().(Element)
+			if len(pathPrefix) == 0 {
+				//if it's exported and isn't a subproperty set also the tag attribute
+				if field.PkgPath == "" {
+					instance := subObj.Get("Element").Get("Object")
+					instance.Call("setAttribute", camelCaseToKebab(attributeName), arguments[2])
+				}
+				print(customObject.Elem().Type().Name())
+				if method := customObject.MethodByName("observer" + attributeName); method.IsValid() {
+					print("observer" + attributeName)
+				}
 			}
 			//sets binded attributes of the children in template
-			elem := customObject.Elem().FieldByName("Element").Interface().(Element)
-			for p := range elem.oneWayDataBindings {
-				if !newAttrPath(p).StartsWith(path) {
+			for p, dbs := range elem.oneWayDataBindings {
+				oneWayPath := newAttrPath(p)
+				if !oneWayPath.StartsWith(path) {
 					continue
 				}
-				for _, db := range elem.oneWayDataBindings[p] {
-					db.SetAttr(internalCustomObject)
+				for _, db := range dbs {
+					db.setAttr(internalCustomObject)
+				}
+				//if a subobject with data bindings was replaced, then set an proxy
+				if len(oneWayPath) > len(path) {
+					elem.subpropertyProxySet(p)
 				}
 			}
-			for p := range elem.twoWayDataBindings {
-				if !newAttrPath(p).StartsWith(path) {
+			for p, db := range elem.twoWayDataBindings {
+				twoWayPath := newAttrPath(p)
+				if !twoWayPath.StartsWith(path) {
 					continue
 				}
-				elem.twoWayDataBindings[p].SetAttr(internalCustomObject)
+				db.setAttr(internalCustomObject)
+				//if a subobject with data bindings was replaced, then set an proxy
+				if len(twoWayPath) > len(path) {
+					elem.subpropertyProxySet(p)
+				}
 			}
 			return true
 		}),

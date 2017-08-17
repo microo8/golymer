@@ -11,8 +11,8 @@ import (
 //eg obj.attr.subAttr
 type attrPath []string
 
-func newAttrPath(str string) attrPath {
-	return strings.Split(strings.TrimSpace(str), ".")
+func newAttrPath(str string) (path attrPath) {
+	return strings.Split(str, ".")
 }
 
 //Get returns the js.Object in the attrPath
@@ -62,7 +62,7 @@ func (ap attrPath) GetField(objType reflect.Type) (reflect.StructField, bool) {
 
 //String returns an string representation of the path
 func (ap attrPath) String() string {
-	return strings.Join(ap, ".")
+	return js.InternalObject(ap).Get("$array").Call("join", ".").String()
 }
 
 //StartsWith return true if the path starts with another path

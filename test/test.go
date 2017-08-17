@@ -227,7 +227,7 @@ func TestDataBindings(t *testing.T) {
 			)
 		}
 		testElem.inputObject.Active = false
-		if testElem.Children["inputActive"].Get("checked").Bool() != false {
+		if testElem.Children["inputActive"].Get("checked").Bool() {
 			t.Errorf("setting inputObject.Active to false doesn't set the input value. got %v(%T)",
 				testElem.Children["inputActive"].Get("checked").Interface(),
 				testElem.Children["inputActive"].Get("checked").Interface(),
@@ -275,7 +275,7 @@ func TestDataBindings(t *testing.T) {
 		testElem.Children["inputActive"].Set("checked", true)
 		testElem.Children["inputActive"].Call("dispatchEvent", js.Global.Get("Event").New("change"))
 		time.Sleep(time.Millisecond)
-		if testElem.inputObject.Active != true {
+		if !testElem.inputObject.Active {
 			t.Errorf("not set inputObject.Active to true, got %v", testElem.inputObject.Active)
 		}
 	})
@@ -293,7 +293,7 @@ func TestDataBindings(t *testing.T) {
 		}
 		testElem.Children["divActive"].Call("setAttribute", "checked", true)
 		time.Sleep(time.Millisecond)
-		if testElem.divObject.Active != true {
+		if !testElem.divObject.Active {
 			t.Errorf("not set divObject.Active to true, got %v", testElem.divObject.Active)
 		}
 	})
@@ -334,7 +334,7 @@ func TestDataBindings(t *testing.T) {
 		testElem.Children["inputActive"].Set("checked", true)
 		testElem.Children["inputActive"].Call("dispatchEvent", js.Global.Get("Event").New("change"))
 		time.Sleep(time.Millisecond)
-		if testElem.inputObject.Active != true {
+		if !testElem.inputObject.Active {
 			t.Errorf("not set inputObject.Active to true, got %v", testElem.inputObject.Active)
 		}
 	})
@@ -355,7 +355,7 @@ func TestDataBindings(t *testing.T) {
 			)
 		}
 		testElem.inputObject.Active = false
-		if testElem.Children["inputActive"].Get("checked").Bool() != false {
+		if testElem.Children["inputActive"].Get("checked").Bool() {
 			t.Errorf("setting inputObject.Active to false doesn't set the input value. got %v(%T)",
 				testElem.Children["inputActive"].Get("checked").Interface(),
 				testElem.Children["inputActive"].Get("checked").Interface(),
