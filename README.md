@@ -1,11 +1,13 @@
 # golymer
 Create HTML [custom elements](https://www.w3.org/TR/custom-elements/#custom-element) with [go](https://golang.org) ([gopherjs](https://github.com/gopherjs/gopherjs))
 
-It's unstable, things will break in the future.
-
-contribution of all kind is welcome
-
 With golymer you can create your own HTML custom elements, just by registering an go struct. The innerHTML of the shadowDOM has automatic data bindings to the struct fields (and fields of the struct fields ...).
+
+
+It's unstable, things will break in the future. golymer works only on chrome. (some webcomponent polyfills will be needed for custom elements to work in other browsers).
+
+Contribution of all kind is welcome. Tips for improvement or api simplification also :)
+
 
 ```go
 package main
@@ -79,6 +81,37 @@ The struct name, in CamelCase, is converted to the kebab-case. Because html cust
 
 Also the constructor fuction must have an special shape. It can't take no arguments and must return an *pointer* to an struct that embeds the `golymer.Element` struct.
 
+## element attributes
+
+golymer creates attributes on the custom element from the exported fields and syncs the values.
+
+```go
+type MyElem struct {
+	golymer.Element
+	ExportedField string
+	unexportedField int
+	Foo float64
+	Bar bool
+}
+```
+
+Exported fields have attributes on the element. This enables to declaratively set the api of the new element. The attributes are also converted to kebab-case.
+
+```html
+<my-elem exported-field="value" foo="3.14" bar="true"></my-elem>
+```
+
+## lifecycle callbacks
+
+`golymer.Element` implemets the `golymer.CustomElement` interface. It's an interface for the custom elements lifecycle in the DOM. 
+
+`ConnectedCallback()` called when the element is connected to the DOM. Override this callback for setting some fields, or spin up some goroutines, but remember to call the `golymer.Element` also (`myElem.Element.ConnectedCallback()`).
+
+`DisconnectedCallback()` called when the element is disconnected from the DOM. Use this to release some resources, or stop goroutines.
+
+`AttributeChangedCallback(attributeName string, oldValue string, newValue string, namespace string)` this callback called when an observed attribute value is changed. golymer automatically observes all exported fields. When overriding this, also remember to call `golymer.Element` callback (`myElem.Element.AttributeChangedCallback(attributeName, oldValue, newValue, namespace)`).
+
+
 ## template
 
 The `innerHTML` of the `shadowDOM` in your new custom element is just an string that must be assigned to the `Element.Template` field in the constructor. eg:
@@ -103,7 +136,7 @@ golymer has build in data bindings. One way data bindings are used for presentin
 <p>[[Text]]!!!</p>
 ```
 
-Where the host struct has an `Text` field. Or the name in brackets can be an path to an fielt `subObject.subSubObject.Field`. The field value este then converted to it's string representation. One way data bindings can be used in text nodes, like in the example above, and also in element attributes eg. `<div style="display: [[MyDisplay]]"></div>`
+Where the host struct has an `Text` field. Or the name in brackets can be an path to an fielt `subObject.subSubObject.Field`. The field value este then converted to it's string representation. One way data bindings can be used in text nodes, like in the example above, and also in element attributes eg. `<div style="display: [[MyDisplay]];"></div>`
 
 Every time the fields value is changed, the template will be automaticaly changed. Changing the `Text` fields value eg `myElem.Text = "foo"` also changes the `<p>` element's `innerHTML`.
 
@@ -134,11 +167,11 @@ func (e *MyElem) ButtonClicked(event *golymer.Event) {
 
 ## custom events
 
-golymer adds the `DispatchEvent` method so you can fire your own event.
+golymer adds the `DispatchEvent` method so you can fire your own events.
 
 ```go
 event := golymer.NewEvent(
-	"custom-event",
+	"my-event",
 	map[string]interface{}{
 		"detail": map[string]interface{}{
 			"data": "foo",
@@ -152,7 +185,7 @@ elem.DispatchEvent(event)
 and these events can be also connected to:
 
 ```html
-<my-second-element on-custom-event="MyCustomHandler"></my-second-element>
+<my-second-element on-my-event="MyCustomHandler"></my-second-element>
 ```
 
 ## observers
@@ -167,8 +200,31 @@ func (e *MyElem) ObserverText(oldValue, newValue string) {
 
 ## children
 
+golymer scans the template and checks the `id` of all elements in it. The `id` will then be used to map the children of the custom element and can be accessed from the `Childen` map (`map[string]*js.Object`). Attribute `id` cannot be databinded (it's value must be constant). 
 
+```go
+const myTemplate = `
+<h1 id="heading">Heading</h1>
+<my-second-element id="second"></my-second-element>
+<button on-click="Click">click me</button>
+`
 
-## tips
+func (e *MyElem) Click(event *golymer.Event) {
+	secondElem := e.Children["second"].Interface().(*MySecondElement)
+	secondElem.DoSomething()
+}
+```
 
-It is possible to type assert the node object to your custom struct type.
+## type assertion
+
+It is possible to type assert the node object to your custom struct type. With selecting the node from the DOM directly
+
+```go
+myElem := js.Global.Get("document").Call("getElementById").Interface().(*MyElem)
+```
+
+and also from the `Children` map
+
+```go
+secondElem := e.Children["second"].Interface().(*MySecondElement)
+```
