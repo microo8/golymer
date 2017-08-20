@@ -300,7 +300,6 @@ func newProxy(customObject reflect.Value, pathPrefix attrPath) (proxy *js.Object
 				//field doesn't exist
 				return true
 			}
-			subObj.Set(attributeName, arguments[2])
 			elem := customObject.Elem().FieldByName("Element").Interface().(Element)
 			if len(pathPrefix) == 0 {
 				//if it's exported and isn't a subproperty set also the tag attribute
@@ -308,11 +307,15 @@ func newProxy(customObject reflect.Value, pathPrefix attrPath) (proxy *js.Object
 					instance := subObj.Get("Element").Get("Object")
 					instance.Call("setAttribute", camelCaseToKebab(attributeName), arguments[2])
 				}
-				print(customObject.Elem().Type().Name())
-				if method := customObject.MethodByName("observer" + attributeName); method.IsValid() {
-					print("observer" + attributeName)
+				if method := customObject.MethodByName("Observer" + attributeName); method.IsValid() {
+					in := []reflect.Value{
+						reflect.ValueOf(subObj.Get(attributeName).Interface()),
+						reflect.ValueOf(arguments[2].Interface()),
+					}
+					method.Call(in)
 				}
 			}
+			subObj.Set(attributeName, arguments[2])
 			//sets binded attributes of the children in template
 			for p, dbs := range elem.oneWayDataBindings {
 				oneWayPath := newAttrPath(p)

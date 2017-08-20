@@ -50,7 +50,7 @@ type TestElem struct {
 	inputObject           *TestDataObject
 	divObject             *TestDataObject
 	HeadingClicked        bool
-	Observe               string
+	Observe               string `observer:"observerObserve"`
 	Observe2              string
 	CustomEventDispatched bool
 	CustomEventDetail     string
@@ -61,7 +61,8 @@ func (te *TestElem) Click(event *golymer.Event) {
 	te.HeadingClicked = true
 }
 
-func (te *TestElem) observerObserve(oldValue, newValue string) {
+//ObserverObserve observer for the Observe field
+func (te *TestElem) ObserverObserve(oldValue, newValue string) {
 	te.Observe2 = newValue
 }
 
