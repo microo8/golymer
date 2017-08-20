@@ -1,7 +1,7 @@
 # golymer
 Create HTML [custom elements](https://www.w3.org/TR/custom-elements/#custom-element) with [go](https://golang.org) ([gopherjs](https://github.com/gopherjs/gopherjs))
 
-With golymer you can create your own HTML custom elements, just by registering an go struct. The innerHTML of the shadowDOM has automatic data bindings to the struct fields (and fields of the struct fields ...).
+With golymer you can create your own HTML custom elements, just by registering a go struct. The innerHTML of the shadowDOM has automatic data bindings to the struct fields (and fields of the struct fields ...).
 
 
 It's unstable, things will break in the future. golymer works only on chrome. (some webcomponent polyfills will be needed for custom elements to work in other browsers).
