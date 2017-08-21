@@ -1,10 +1,10 @@
 # golymer
 Create HTML [custom elements](https://www.w3.org/TR/custom-elements/#custom-element) with [go](https://golang.org) ([gopherjs](https://github.com/gopherjs/gopherjs))
 
-With golymer you can create your own HTML custom elements, just by registering an go struct. The innerHTML of the shadowDOM has automatic data bindings to the struct fields (and fields of the struct fields ...).
+With golymer you can create your own HTML custom elements, just by registering a go struct. The `innerHTML` of the `shadowDOM` has automatic data bindings to the struct fields (and fields of the struct fields ...).
 
 
-It's unstable, things will break in the future. golymer works only on chrome. (some webcomponent polyfills will be needed for custom elements to work in other browsers).
+It's unstable, things will break in the future.
 
 Contribution of all kind is welcome. Tips for improvement or api simplification also :)
 
@@ -130,7 +130,7 @@ The element will then have an `shadowDOM` thats `innerHTML` will be set from the
 
 ## one way data bindings
 
-golymer has build in data bindings. One way data bindings are used for presenting an struct field's value. For defining an one way databinding you can use double square brackets with the path to the field (`[[Field]]` or `subObject.Field`) Eg:
+golymer has build in data bindings. One way data bindings are used for presenting an struct field's value. For defining an one way databinding you can use double square brackets with the path to the field (`[[Field]]` or `[[subObject.Field]]`) Eg:
 
 ```html
 <p>[[Text]]!!!</p>
