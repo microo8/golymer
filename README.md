@@ -1,4 +1,7 @@
 # golymer
+
+[![Join the chat at https://gitter.im/iheartradio/vclgenie](https://badges.gitter.im/iheartradio/vclgenie.svg)](https://gitter.im/golymer/Lobby?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+
 Create HTML [custom elements](https://www.w3.org/TR/custom-elements/#custom-element) with [go](https://golang.org) ([gopherjs](https://github.com/gopherjs/gopherjs))
 
 With golymer you can create your own HTML custom elements, just by registering a go struct. The `innerHTML` of the `shadowDOM` has automatic data bindings to the struct fields.
