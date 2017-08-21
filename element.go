@@ -359,6 +359,12 @@ func convertJSType(t reflect.Type, value *js.Object) (val interface{}, err error
 		val = valString
 		return
 	case reflect.Bool:
+		if valString == "" { //if the bool attribute is present set true
+			return true, nil
+		}
+		if valString == "null" { //if the bool attribute was removed set false
+			return false, nil
+		}
 		val, err = strconv.ParseBool(valString)
 	case reflect.Float32:
 		val, err = strconv.ParseFloat(valString, 32)
