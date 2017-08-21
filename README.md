@@ -1,10 +1,7 @@
 # golymer
 Create HTML [custom elements](https://www.w3.org/TR/custom-elements/#custom-element) with [go](https://golang.org) ([gopherjs](https://github.com/gopherjs/gopherjs))
 
-With golymer you can create your own HTML custom elements, just by registering a go struct. The `innerHTML` of the `shadowDOM` has automatic data bindings to the struct fields (and fields of the struct fields ...).
-
-
-It's unstable, things will break in the future.
+With golymer you can create your own HTML custom elements, just by registering a go struct. The `innerHTML` of the `shadowDOM` has automatic data bindings to the struct fields.
 
 Contribution of all kind is welcome. Tips for improvement or api simplification also :)
 
@@ -58,7 +55,7 @@ Then just run `$ gopherjs build`, import the generated script to your html `<scr
 
 ## define an element
 
-To define your own custom element, you must create an struct that embeds the `golymer.Element` struct. And then an function that is the constructor for the struct. Then add the constructor to the `golymer.Define` function. This is an minimal example.:
+To define your own custom element, you must create an struct that embeds the `golymer.Element` struct and a function that is the constructor for the struct. Then add the constructor to the `golymer.Define` function. This is an minimal example.:
 
 ```go
 type MyElem struct {
@@ -79,7 +76,7 @@ func init() {
 
 The struct name, in CamelCase, is converted to the kebab-case. Because html custom elements must have at least one dash in the name, the struct name must also have at least one "hump" in the camel case name. `(MyElem -> my-elem)`. So, for example, an struct named `Foo` will not be defined and the `Define` function will return an error.
 
-Also the constructor fuction must have an special shape. It can't take no arguments and must return an *pointer* to an struct that embeds the `golymer.Element` struct.
+Also the constructor fuction must have a special shape. It can't take no arguments and must return a *pointer* to an struct that embeds the `golymer.Element` struct.
 
 ## element attributes
 
@@ -100,6 +97,8 @@ Exported fields have attributes on the element. This enables to declaratively se
 ```html
 <my-elem exported-field="value" foo="3.14" bar="true"></my-elem>
 ```
+
+HTML element attributes can have just text values, so golymer parses these values to convert it to the field types with the [strconv](https://golang.org/pkg/strconv) package.
 
 ## lifecycle callbacks
 
@@ -153,11 +152,13 @@ Changing `elem.Username` changes the `input.value`, and also changing the `input
 
 ## connecting to events
 
-Connecting to the events of elements can created by `addEventListener` function, but it is also possible to connect some struct method with an `on-<eventName>` attribute.  
+Connecting to the events of elements can be done with the javascript `addEventListener` function, but it is also possible to connect some struct method with an `on-<eventName>` attribute.  
 
 ```html
 <button on-click="ButtonClicked"></button>
 ```
+
+Event handlers get the event as a pointer to `golymer.Event`
 
 ```go
 func (e *MyElem) ButtonClicked(event *golymer.Event) {
@@ -220,7 +221,7 @@ func (e *MyElem) Click(event *golymer.Event) {
 It is possible to type assert the node object to your custom struct type. With selecting the node from the DOM directly
 
 ```go
-myElem := js.Global.Get("document").Call("getElementById").Interface().(*MyElem)
+myElem := js.Global.Get("document").Call("getElementById", "myElem").Interface().(*MyElem)
 ```
 
 and also from the `Children` map
