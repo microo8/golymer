@@ -81,7 +81,6 @@ func (e *Element) ConnectedCallback() {
 	e.oneWayDataBindings = make(map[string][]*oneWayDataBinding)
 	e.twoWayDataBindings = make(map[string]*twoWayDataBinding)
 	e.scanElement(e.Get("shadowRoot"))
-	e.initAttributes()
 }
 
 //DisconnectedCallback called when the element is dettached from the DOM
@@ -230,18 +229,6 @@ func (e *Element) subpropertyProxySet(bindedPathString string) {
 
 func (e *Element) subpropertyProxyAdded(subpropertyPath attrPath) bool {
 	return subpropertyPath.Get(e.Get("__internal_object__")).Get("__is_proxy__").Bool()
-}
-
-//initAttributes checks the initial values of fields that are mapped to attributes
-func (e *Element) initAttributes() {
-	for i := 0; i < e.ObjValue.Elem().NumField(); i++ {
-		fieldType := e.ObjValue.Elem().Type().Field(i)
-		if fieldType.PkgPath != "" || fieldType.Anonymous {
-			continue
-		}
-		field := e.ObjValue.Elem().Field(i)
-		e.Call("setAttribute", camelCaseToKebab(fieldType.Name), field.Interface())
-	}
 }
 
 func newMutationObserver(proxy *js.Object, fieldType reflect.Type, attr *js.Object, path string) *js.Object {
