@@ -1,6 +1,8 @@
 package mdbutton
 
-import "github.com/microo8/golymer"
+import (
+	"github.com/microo8/golymer"
+)
 
 func init() {
 	err := golymer.Define(NewMdButton)
@@ -12,8 +14,8 @@ func init() {
 const mdButtonTemplate = `
 <style>
   :host {
-	@apply --layout-inline;
-	@apply --layout-center-center;
+	display: inline-flex;
+	align-items: center;
 	position: relative;
 	box-sizing: border-box;
 	min-width: 5.14em;
@@ -31,21 +33,33 @@ const mdButtonTemplate = `
 	user-select: none;
 	cursor: pointer;
 	z-index: 0;
+	transition: box-shadow 0.28s cubic-bezier(0.4, 0, 0.2, 1);
   }
   :host([elevation="1"]) {
-	@apply --paper-material-elevation-1;
+	box-shadow: 0 2px 2px 0 rgba(0, 0, 0, 0.14),
+                    0 1px 5px 0 rgba(0, 0, 0, 0.12),
+                    0 3px 1px -2px rgba(0, 0, 0, 0.2);
   }
+
   :host([elevation="2"]) {
-	@apply --paper-material-elevation-2;
+	box-shadow: 0 3px 4px 0 rgba(0, 0, 0, 0.14),
+				0 1px 8px 0 rgba(0, 0, 0, 0.12),
+				0 3px 3px -2px rgba(0, 0, 0, 0.4);
   }
   :host([elevation="3"]) {
-	@apply --paper-material-elevation-3;
+	box-shadow: 0 4px 5px 0 rgba(0, 0, 0, 0.14),
+				0 1px 10px 0 rgba(0, 0, 0, 0.12),
+				0 2px 4px -1px rgba(0, 0, 0, 0.4);
   }
   :host([elevation="4"]) {
-	@apply --paper-material-elevation-4;
+	box-shadow: 0 6px 10px 0 rgba(0, 0, 0, 0.14),
+				0 1px 18px 0 rgba(0, 0, 0, 0.12),
+				0 3px 5px -1px rgba(0, 0, 0, 0.4);
   }
   :host([elevation="5"]) {
-	@apply --paper-material-elevation-5;
+	box-shadow: 0 12px 16px 1px rgba(0, 0, 0, 0.14),
+				0 4px 22px 3px rgba(0, 0, 0, 0.12),
+				0 6px 7px -4px rgba(0, 0, 0, 0.4);
   }
   :host([hidden]) {
 	display: none !important;
@@ -65,9 +79,6 @@ const mdButtonTemplate = `
 	pointer-events: none;
 	@apply --md-button-disabled;
   }
-  :host([animated]) {
-	@apply --shadow-transition;
-  }
   paper-ripple {
 	color: var(--md-button-ink-color);
   }
@@ -79,12 +90,14 @@ const mdButtonTemplate = `
 //MdButton implementation of material design button
 type MdButton struct {
 	golymer.Element
-	Raised bool
+	Raised    bool
+	Elevation int
 }
 
 //NewMdButton creates new MDButton
 func NewMdButton() *MdButton {
 	b := new(MdButton)
+	b.Elevation = 1
 	b.Template = mdButtonTemplate
 	return b
 }
