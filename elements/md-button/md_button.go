@@ -35,44 +35,44 @@ const mdButtonTemplate = `
 	z-index: 0;
 	transition: box-shadow 0.28s cubic-bezier(0.4, 0, 0.2, 1);
   }
-  :host([elevation="1"]) {
+  :host([Elevation="1"]) {
 	box-shadow: 0 2px 2px 0 rgba(0, 0, 0, 0.14),
                     0 1px 5px 0 rgba(0, 0, 0, 0.12),
                     0 3px 1px -2px rgba(0, 0, 0, 0.2);
   }
 
-  :host([elevation="2"]) {
+  :host([Elevation="2"]) {
 	box-shadow: 0 3px 4px 0 rgba(0, 0, 0, 0.14),
 				0 1px 8px 0 rgba(0, 0, 0, 0.12),
 				0 3px 3px -2px rgba(0, 0, 0, 0.4);
   }
-  :host([elevation="3"]) {
+  :host([Elevation="3"]) {
 	box-shadow: 0 4px 5px 0 rgba(0, 0, 0, 0.14),
 				0 1px 10px 0 rgba(0, 0, 0, 0.12),
 				0 2px 4px -1px rgba(0, 0, 0, 0.4);
   }
-  :host([elevation="4"]) {
+  :host([Elevation="4"]) {
 	box-shadow: 0 6px 10px 0 rgba(0, 0, 0, 0.14),
 				0 1px 18px 0 rgba(0, 0, 0, 0.12),
 				0 3px 5px -1px rgba(0, 0, 0, 0.4);
   }
-  :host([elevation="5"]) {
+  :host([Elevation="5"]) {
 	box-shadow: 0 12px 16px 1px rgba(0, 0, 0, 0.14),
 				0 4px 22px 3px rgba(0, 0, 0, 0.12),
 				0 6px 7px -4px rgba(0, 0, 0, 0.4);
   }
-  :host([hidden]) {
+  :host([Hidden]) {
 	display: none !important;
   }
-  :host([raised].keyboard-focus) {
+  :host([Raised].keyboard-focus) {
 	font-weight: bold;
 	@apply --md-button-raised-keyboard-focus;
   }
-  :host(:not([raised]).keyboard-focus) {
+  :host(:not([Raised]).keyboard-focus) {
 	font-weight: bold;
 	@apply --md-button-flat-keyboard-focus;
   }
-  :host([disabled]) {
+  :host([Disabled]) {
 	background: #eaeaea;
 	color: #a8a8a8;
 	cursor: auto;
@@ -91,6 +91,8 @@ const mdButtonTemplate = `
 type MdButton struct {
 	golymer.Element
 	Raised    bool
+	Disabled  bool
+	Hidden    bool
 	Elevation int
 }
 

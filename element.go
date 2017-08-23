@@ -318,7 +318,15 @@ func newProxy(customObject reflect.Value, pathPrefix attrPath) (proxy *js.Object
 				//if it's exported and isn't a subproperty set also the tag attribute
 				if field.PkgPath == "" {
 					instance := subObj.Get("Element").Get("Object")
-					instance.Call("setAttribute", camelCaseToKebab(attributeName), arguments[2])
+					if field.Type.Kind() == reflect.Bool { //bool type just sets/unsets the attribude
+						if arguments[2].Bool() {
+							instance.Call("setAttribute", camelCaseToKebab(attributeName), "")
+						} else {
+							instance.Call("removeAttribute", camelCaseToKebab(attributeName))
+						}
+					} else {
+						instance.Call("setAttribute", camelCaseToKebab(attributeName), arguments[2])
+					}
 				}
 				if method := customObject.MethodByName("Observer" + attributeName); method.IsValid() {
 					in := []reflect.Value{
