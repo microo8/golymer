@@ -362,6 +362,28 @@ func TestDataBindings(t *testing.T) {
 			)
 		}
 	})
+
+	t.Run("passing object to child", func(t *testing.T) {
+		testElem.Obj = &Obj{2}
+		if testElem.Obj != testElemTwo.Obj {
+			t.Errorf("passing obj didn't work, testElemTwo.Obj")
+		}
+		testElem.Obj2 = &Obj{2}
+		if testElem.Obj2 != testElemTwo.Obj2 {
+			t.Errorf("passing obj didn't work, testElemTwo.Obj2")
+		}
+	})
+
+	t.Run("passing object to parent", func(t *testing.T) {
+		testElemTwo.Obj = &Obj{3}
+		if testElem.Obj != testElemTwo.Obj {
+			t.Errorf("passing obj didn't work, testElem.Obj: %v", testElem.Obj)
+		}
+		testElemTwo.Obj2 = &Obj{3}
+		if testElem.Obj2 != testElemTwo.Obj2 {
+			t.Errorf("passing obj didn't work, testElem.Obj2: %v", testElem.Obj2)
+		}
+	})
 }
 
 //TestEvent tests event bindings

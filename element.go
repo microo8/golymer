@@ -8,10 +8,6 @@ import (
 	"github.com/gopherjs/gopherjs/js"
 )
 
-func consoleError(args ...interface{}) {
-	js.Global.Get("console").Call("error", args...)
-}
-
 //CustomElement the interface to create the CustomElement
 type CustomElement interface {
 	ConnectedCallback()
@@ -33,8 +29,7 @@ func (db oneWayDataBinding) setAttr(obj *js.Object) {
 		fieldValue := newAttrPath(path).Get(obj)
 		value = strings.Replace(value, "[["+path+"]]", fieldValue.String(), -1)
 	}
-	if db.attribute.Get("value") != js.Undefined {
-		//if it's an attribute
+	if db.attribute.Get("value") != js.Undefined { //if it's an attribute
 		db.attribute.Set("value", value)
 		//if it is an input node, also set the property
 		if db.attribute.Get("ownerElement").Get("nodeName").String() == "INPUT" {
@@ -47,20 +42,25 @@ func (db oneWayDataBinding) setAttr(obj *js.Object) {
 
 type twoWayDataBinding struct {
 	attribute        *js.Object
+	setter           func(*js.Object)
 	path             string
 	mutationObserver *js.Object
 }
 
 func (db twoWayDataBinding) setAttr(obj *js.Object) {
 	value := newAttrPath(db.path).Get(obj)
-	if db.attribute.Get("value").String() == value.String() {
+	if db.attribute != nil {
+		if db.attribute.Get("value").String() == value.String() {
+			return
+		}
+		db.attribute.Set("value", value)
+		//if it is an input node, also set the property
+		if db.attribute.Get("ownerElement").Get("nodeName").String() == "INPUT" {
+			db.attribute.Get("ownerElement").Set(db.attribute.Get("name").String(), value)
+		}
 		return
 	}
-	db.attribute.Set("value", value)
-	//if it is an input node, also set the property
-	if db.attribute.Get("ownerElement").Get("nodeName").String() == "INPUT" {
-		db.attribute.Get("ownerElement").Set(db.attribute.Get("name").String(), value)
-	}
+	db.setter(value)
 }
 
 //Element wrapper for the HTML element
@@ -81,6 +81,7 @@ func (e *Element) ConnectedCallback() {
 	e.oneWayDataBindings = make(map[string][]*oneWayDataBinding)
 	e.twoWayDataBindings = make(map[string]*twoWayDataBinding)
 	e.scanElement(e.Get("shadowRoot"))
+	e.initAttributes()
 }
 
 //DisconnectedCallback called when the element is dettached from the DOM
@@ -103,13 +104,10 @@ func (e *Element) AttributeChangedCallback(attributeName string, oldValue string
 		}
 		convertedValue, err := convertJSType(field.Type, js.InternalObject(newValue))
 		if err != nil {
-			consoleError(
-				"Error converting value in setting the property",
-				path.String(),
-				": (", newValue, ")",
-				err,
-			)
-			return
+			panic("Error converting value in setting the property" +
+				path.String() +
+				": (" + newValue + ")" +
+				err.Error())
 		}
 		e.Get("__internal_object__").Set(exportedFieldName, convertedValue)
 	}
@@ -124,21 +122,36 @@ func (e *Element) DispatchEvent(ce *Event) {
 	e.Call("dispatchEvent", ce)
 }
 
+func (e *Element) initAttributes() {
+	for i := 0; i < e.ObjValue.Elem().NumField(); i++ {
+		fieldType := e.ObjValue.Elem().Type().Field(i)
+		if fieldType.PkgPath != "" || fieldType.Anonymous {
+			continue
+		}
+		field := e.ObjValue.Elem().Field(i)
+		//don't override the data binding
+		if !isDataBindingExpression(e.Call("getAttribute", camelCaseToKebab(fieldType.Name)).String()) {
+			setNodeAttribute(fieldType, e.Object, field.Interface())
+		}
+	}
+}
+
 func (e *Element) scanElement(element *js.Object) {
 	//find data binded attributes
 	if elementAttributes := element.Get("attributes"); elementAttributes != js.Undefined {
 		for i := 0; i < elementAttributes.Length(); i++ {
 			attribute := elementAttributes.Index(i)
-			//collect children with id
-			if attribute.Get("name").String() == "id" {
+			attributeName := attribute.Get("name").String()
+			if attributeName == "id" {
 				e.Children[attribute.Get("value").String()] = element
+				continue
+			}
+			if attributeName[:3] == "on-" {
+				e.addEventListener(attribute)
 				continue
 			}
 			e.addOneWay(attribute, attribute.Get("value").String())
 			e.addTwoWay(attribute, attribute.Get("value").String())
-			if attribute.Get("name").String()[:3] == "on-" {
-				e.addEventListener(attribute)
-			}
 		}
 	}
 	//find textChild with data binded value
@@ -173,24 +186,49 @@ func (e *Element) addOneWay(obj *js.Object, value string) {
 //than finds all data bindings and adds it to the twoWayDataBindings map
 func (e *Element) addTwoWay(obj *js.Object, value string) {
 	//twoWayDataBinding, obj is attribute DOM object and value is in {{}}
-	if obj.Get("value") == js.Undefined || value[:2] != "{{" || value[len(value)-2:] != "}}" {
+	if obj.Get("value") == js.Undefined || len(value) < 5 || value[:2] != "{{" || value[len(value)-2:] != "}}" {
 		return
 	}
 	path := value[2 : len(value)-2]
-	if _, ok := e.twoWayDataBindings[path]; ok {
-		consoleError("data binding", path, "set more than once")
-	}
-	e.subpropertyProxySet(path)
-	field, ok := newAttrPath(path).GetField(e.ObjValue.Type().Elem())
+	aPath := newAttrPath(path)
+	field, ok := aPath.GetField(e.ObjValue.Type().Elem())
 	if !ok {
-		consoleError("Error: two way data binding path:", path, "field doesn't exist")
-		return
+		panic("Error: two way data binding path: " + path + " field doesn't exist")
 	}
-	if obj.Get("ownerElement").Get("nodeName").String() == "INPUT" {
-		addInputListener(e.Get("__internal_object__"), field.Type, obj, newAttrPath(path))
+	if _, ok := e.twoWayDataBindings[path]; ok {
+		panic("data binding " + path + " set more than once")
 	}
-	mutationObserver := newMutationObserver(e.Get("__internal_object__"), field.Type, obj, path)
-	db := &twoWayDataBinding{attribute: obj, path: path, mutationObserver: mutationObserver}
+	var db *twoWayDataBinding
+	switch field.Type.Kind() {
+	case reflect.Ptr, reflect.Struct, reflect.Array, reflect.Slice:
+		subElement := obj.Get("ownerElement").Get("__internal_object__")
+		if subElement == js.Undefined {
+			panic("cannot set two way data binding for complex data structure on a noncustom element (" + value + ")")
+		}
+		fieldName := toExportedFieldName(obj.Get("name").String())
+		db = &twoWayDataBinding{path: path, setter: func(val *js.Object) {
+			if subElement.Get(fieldName) != val {
+				subElement.Set(fieldName, val)
+			}
+		}}
+		subDB := &twoWayDataBinding{path: fieldName, setter: func(val *js.Object) {
+			if aPath.Get(e.Get("__internal_object__")) != val {
+				aPath.Set(e.Get("__internal_object__"), val)
+			}
+		}}
+		//dirty subElement twoWayDataBindings setting new path
+		subElement.Get("Element").Get("twoWayDataBindings").Set(
+			"$"+fieldName,
+			map[string]interface{}{"k": fieldName, "v": js.InternalObject(subDB)},
+		)
+	default:
+		e.subpropertyProxySet(path)
+		if obj.Get("ownerElement").Get("nodeName").String() == "INPUT" {
+			addInputListener(e.Get("__internal_object__"), field.Type, obj, newAttrPath(path))
+		}
+		mutationObserver := newMutationObserver(e.Get("__internal_object__"), field.Type, obj, path)
+		db = &twoWayDataBinding{attribute: obj, path: path, mutationObserver: mutationObserver}
+	}
 	e.twoWayDataBindings[path] = db
 	db.setAttr(e.Object)
 }
@@ -200,8 +238,7 @@ func (e *Element) addEventListener(attr *js.Object) {
 	methodName := attr.Get("value").String()
 	method := e.ObjValue.MethodByName(methodName)
 	if !method.IsValid() {
-		consoleError("Error on event listener", eventName, "binding, method", methodName, "doesn't exist")
-		return
+		panic("Error on event listener " + eventName + " binding, method " + methodName + " doesn't exist")
 	}
 	attr.Get("ownerElement").Call(
 		"addEventListener",
@@ -239,13 +276,10 @@ func newMutationObserver(proxy *js.Object, fieldType reflect.Type, attr *js.Obje
 			path := newAttrPath(attr.Get("__attr_path__").String())
 			convertedValue, err := convertJSType(fieldType, newValue)
 			if err != nil {
-				consoleError(
-					"Error converting value in setting the property",
-					path.String(),
-					": (", newValue, ")",
-					err,
-				)
-				return nil
+				panic("Error converting value in setting the property" +
+					path.String() +
+					": (" + newValue.String() + ")" +
+					err.Error())
 			}
 			if path.Get(proxy) != convertedValue {
 				path.Set(proxy, convertedValue)
@@ -305,15 +339,7 @@ func newProxy(customObject reflect.Value, pathPrefix attrPath) (proxy *js.Object
 				//if it's exported and isn't a subproperty set also the tag attribute
 				if field.PkgPath == "" {
 					instance := subObj.Get("Element").Get("Object")
-					if field.Type.Kind() == reflect.Bool { //bool type just sets/unsets the attribude
-						if arguments[2].Bool() {
-							instance.Call("setAttribute", camelCaseToKebab(attributeName), "")
-						} else {
-							instance.Call("removeAttribute", camelCaseToKebab(attributeName))
-						}
-					} else {
-						instance.Call("setAttribute", camelCaseToKebab(attributeName), arguments[2])
-					}
+					setNodeAttribute(field, instance, arguments[2])
 				}
 				if method := customObject.MethodByName("Observer" + attributeName); method.IsValid() {
 					in := []reflect.Value{
@@ -354,6 +380,26 @@ func newProxy(customObject reflect.Value, pathPrefix attrPath) (proxy *js.Object
 	}
 	proxy = js.Global.Get("Proxy").New(subObj, handler)
 	return
+}
+
+func setNodeAttribute(field reflect.StructField, node *js.Object, value interface{}) {
+	attributeName := camelCaseToKebab(field.Name)
+	switch field.Type.Kind() {
+	case reflect.Bool: //bool type just sets/unsets the attribute
+		boolValue, ok := value.(bool)
+		if !ok {
+			boolValue = value.(*js.Object).Bool()
+		}
+		if boolValue {
+			node.Call("setAttribute", attributeName, "")
+		} else {
+			node.Call("removeAttribute", attributeName)
+		}
+	case reflect.Ptr, reflect.Struct, reflect.Array, reflect.Slice:
+		//don't set attribute if it is an complex data structure
+	default:
+		node.Call("setAttribute", attributeName, value)
+	}
 }
 
 func convertJSType(t reflect.Type, value *js.Object) (val interface{}, err error) {

@@ -20,7 +20,7 @@ const testElemTemplate = `
 <h1 id="heading" height="{{Value}}" int="{{intValue2}}" on-click="Click">
 	<span id="meh" style="background-color: [[BackgroundColor]];">[[content]]</span>
 </h1>
-<test-elem-two id="two" display="[[Display]]" counter="{{intValue}}" on-custom-event="CustomEventHandler">
+<test-elem-two id="two" display="[[Display]]" counter="{{intValue}}" on-custom-event="CustomEventHandler" obj="{{Obj}}" obj2="{{Obj2}}">
 	<p id="slotChild">slot</p>
 </test-elem-two>
 
@@ -54,6 +54,8 @@ type TestElem struct {
 	Observe2              string
 	CustomEventDispatched bool
 	CustomEventDetail     string
+	Obj                   *Obj
+	Obj2                  *Obj
 }
 
 //Click ...
@@ -89,6 +91,9 @@ func NewTestElem() *TestElem {
 			Name:   "John",
 			Active: true,
 		},
+		Obj: &Obj{
+			id: 1,
+		},
 	}
 	elem.Template = testElemTemplate
 	return elem
@@ -102,12 +107,19 @@ type TestDataObject struct {
 	Active  bool
 }
 
+//Obj for testing object passing between elements trough twoWayDataBindings
+type Obj struct {
+	id int
+}
+
 //TestElemTwo ...
 type TestElemTwo struct {
 	golymer.Element
 	Display string
 	Value   string
 	Counter int
+	Obj     *Obj
+	Obj2    *Obj
 }
 
 //NewTestElemTwo ...
