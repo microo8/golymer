@@ -152,6 +152,35 @@ Two way data bindings are declared with two curly brackets (`{{Field}}` or `{{su
 
 Changing `elem.Username` changes the `input.value`, and also changing the `input.value` or the value attribute `document.getElementById("username").setAttribute("newValue")` or the user adds some text, the `elem.Username` will be also changed.
 
+It's also possible to pass complex data structures to the sub element with two way data bindings.
+
+```go
+type User struct {
+	ID   int
+	Name string
+}
+
+type ElemOne struct {
+	golymer.Element
+	Usr  *User
+	...
+}
+type ElemTwo struct {
+	golymer.Element
+	Usr  *User
+	...
+}
+```
+
+`ElemOne` template:
+
+```html
+<div>
+	<elem-two usr="{{Usr}}"></elem-two>
+</div>
+```
+
+This will keep the `elemOne.Usr` and `elemTwo.Usr` the same pointer to the same object.
 
 ## connecting to events
 
