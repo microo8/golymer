@@ -138,3 +138,8 @@ func Define(f interface{}) error {
 	js.Global.Get("customElements").Call("define", camelCaseToKebab(customElementType.Name()), element)
 	return nil
 }
+
+//CreateElement creates a new instance of an element that can be type asserted to custom element
+func CreateElement(elementName string) interface{} {
+	return js.Global.Get("document").Call("createElement", elementName).Interface()
+}

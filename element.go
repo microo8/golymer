@@ -79,6 +79,14 @@ func (e *Element) DispatchEvent(ce *Event) {
 	e.Call("dispatchEvent", ce)
 }
 
+//AddEventListener is an wrapper for the js addEventListener
+func (e *Element) AddEventListener(eventName string, f func(*Event)) {
+	e.Call("addEventListener", eventName, js.MakeFunc(func(this *js.Object, arguments []*js.Object) interface{} {
+		f(&Event{Object: arguments[0]})
+		return nil
+	}))
+}
+
 //SetTemplate sets this element's template, must be called in own element's constructor, before connectedCallback
 func (e *Element) SetTemplate(template Template) {
 	e.template = template

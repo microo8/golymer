@@ -2,6 +2,7 @@ package mdbutton
 
 import (
 	"github.com/microo8/golymer"
+	mdripple "github.com/microo8/golymer/elements/md-ripple"
 )
 
 func init() {
@@ -21,6 +22,8 @@ var mdButtonTemplate = golymer.NewTemplate(`
 	min-width: 5.14em;
 	margin: 0 0.29em;
 	background: transparent;
+	background-color: var(--primary-color, #3F51B5);
+	color: #fff;
 	-webkit-tap-highlight-color: rgba(0, 0, 0, 0);
 	-webkit-tap-highlight-color: transparent;
 	font: inherit;
@@ -79,9 +82,6 @@ var mdButtonTemplate = golymer.NewTemplate(`
 	pointer-events: none;
 	@apply --md-button-disabled;
   }
-  paper-ripple {
-	color: var(--md-button-ink-color);
-  }
 </style>
 
 <slot></slot>
@@ -102,4 +102,10 @@ func NewMdButton() *MdButton {
 	b.Elevation = 1
 	b.SetTemplate(mdButtonTemplate)
 	return b
+}
+
+//ConnectedCallback adds click listener for the ripple effect
+func (b *MdButton) ConnectedCallback() {
+	b.Element.ConnectedCallback()
+	mdripple.Add(&b.Element)
 }

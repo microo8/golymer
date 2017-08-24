@@ -264,3 +264,17 @@ and also from the `Children` map
 ```go
 secondElem := e.Children["second"].Interface().(*MySecondElement)
 ```
+
+## element creation
+
+Calling your custom element's constructor creates you just the struct type. The node must be created by the DOM. So you must create your registered element with `document.createElement`:
+
+```go
+myElem := js.Global.Get("document").Call("createElement", "my-elem").Interface().(*MyElem)
+```
+
+Or you can use the helper function from golymer:
+
+```go
+myElem := golymer.CreateElement("my-elem").(*MyElem)
+```
