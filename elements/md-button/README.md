@@ -24,8 +24,29 @@ var template := golymer.NewTemplate(`
 	--primary-color: #3F51B5;
 </style>
 
-<md-button elevation="2">click me!</md-button>
+<md-button elevation="2" on-click="ButtonClicked">click me!</md-button>
 `)
+
+type MyElem struct {
+	golymer.Element
+}
+
+func newMyElem() *MyElem {
+	e := new(MyElem)
+	e.SetTemplate(template)
+	return e
+}
+
+func (e *MyElem) ButtonClicked(event *golymer.Event) {
+	print("Button Clicked!")
+}
+
+func init() {
+	err := golymer.Define(newMyElem)
+	if err != nil {
+		panic(err)
+	}
+}
 ```
 
 ![md-button](https://raw.githubusercontent.com/microo8/golymer/master/elements/md-button/button.png)
