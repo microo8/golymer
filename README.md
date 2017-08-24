@@ -14,7 +14,7 @@ package main
 
 import "github.com/microo8/golymer"
 
-const myAwesomeTemplate = `
+var myAwesomeTemplate = golymer.NewTemplate(`
 <style>
 	:host {
 		background-color: blue;
@@ -24,7 +24,7 @@ const myAwesomeTemplate = `
 </style>
 <p>[[privateProperty]]</p>
 <input type="text" value="{{BarAttr}}"/>
-`
+`)
 
 type MyAwesomeElement struct {
 	golymer.Element
@@ -37,7 +37,7 @@ func NewMyAwesomeElement() *MyAwesomeElement {
 	e := &MyAwesomeElement{
 		FooAttr: 800,
 	}
-	e.Template = myAwesomeTemplate
+	e.SetTemplate(myAwesomeTemplate)
 	return e
 }
 
@@ -116,19 +116,22 @@ HTML element attributes can have just text values, so golymer parses these value
 
 ## template
 
-The `innerHTML` of the `shadowDOM` in your new custom element is just an string that must be assigned to the `Element.Template` field in the constructor. eg:
+The function `golymer.NewTemplate` will create a new [template](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/template) element, from which the new custom element's `shadowDOM` will be instantiated. It is better to use the `template` element for this, because, and not `innerHTML`, because the browser must parse the html only once.
+
+If you want to create an custom element with a template, you must set the elements template in the constructor with the `SetTemplate` function.
 
 ```go
+
+var myTemplate = golymer.NewTemplate(`<h1>Hello golymer</h1>`)
+
 func NewMyElem() *MyElem {
 	e := new(MyElem)
-	e.Template = `
-	<h1>Hello golymer</h1>
-	`
+	e.SetTemplate(myTemplate)
 	return e
 }
 ```
 
-The element will then have an `shadowDOM` thats `innerHTML` will be set from the `Template` field at the `connectedCallback`.
+The element will then have an `shadowDOM` thats content will be set from the `Template` element at the `connectedCallback`.
 
 ## one way data bindings
 
@@ -236,11 +239,11 @@ func (e *MyElem) ObserverText(oldValue, newValue string) {
 golymer scans the template and checks the `id` of all elements in it. The `id` will then be used to map the children of the custom element and can be accessed from the `Childen` map (`map[string]*js.Object`). Attribute `id` cannot be databinded (it's value must be constant). 
 
 ```go
-const myTemplate = `
+var myTemplate = golymer.NewTemplate(`
 <h1 id="heading">Heading</h1>
 <my-second-element id="second"></my-second-element>
 <button on-click="Click">click me</button>
-`
+`)
 
 func (e *MyElem) Click(event *golymer.Event) {
 	secondElem := e.Children["second"].Interface().(*MySecondElement)

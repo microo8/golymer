@@ -20,20 +20,24 @@ type CustomElement interface {
 type Element struct {
 	*js.Object
 	ObjValue reflect.Value //custom element struct type
-	Template string
 	Children map[string]*js.Object
+	template Template
 	oneWay   map[string][]dataBindingSetter
 	twoWay   map[string]dataBindingSetter
 }
 
 //ConnectedCallback called when the element is attached to the DOM
 func (e *Element) ConnectedCallback() {
-	e.Call("attachShadow", map[string]interface{}{"mode": "open"})
-	e.Get("shadowRoot").Set("innerHTML", e.Template)
-	e.Children = make(map[string]*js.Object)
-	e.oneWay = make(map[string][]dataBindingSetter)
-	e.twoWay = make(map[string]dataBindingSetter)
-	e.scanElement(e.Get("shadowRoot"))
+	if e.template != nil {
+		e.Call("attachShadow", map[string]interface{}{"mode": "open"})
+		var jsTemplate *js.Object = e.template
+		clone := jsTemplate.Get("content").Call("cloneNode", true)
+		e.Get("shadowRoot").Call("appendChild", clone)
+		e.Children = make(map[string]*js.Object)
+		e.oneWay = make(map[string][]dataBindingSetter)
+		e.twoWay = make(map[string]dataBindingSetter)
+		e.scanElement(e.Get("shadowRoot"))
+	}
 	e.initAttributes()
 }
 
@@ -73,6 +77,11 @@ func (e *Element) AdoptedCallback(oldDocument, newDocument interface{}) {
 //DispatchEvent dispatches an Event at the specified EventTarget, invoking the affected EventListeners in the appropriate order
 func (e *Element) DispatchEvent(ce *Event) {
 	e.Call("dispatchEvent", ce)
+}
+
+//SetTemplate sets this element's template, must be called in own element's constructor, before connectedCallback
+func (e *Element) SetTemplate(template Template) {
+	e.template = template
 }
 
 func (e *Element) initAttributes() {
@@ -209,7 +218,7 @@ func (e *Element) subpropertyProxySet(bindedPathString string) {
 	subpropertyPath := newAttrPath(bindedPathString)
 	subpropertyPath = subpropertyPath[:len(subpropertyPath)-1]
 	for ; len(subpropertyPath) > 0; subpropertyPath = subpropertyPath[:len(subpropertyPath)-1] {
-		if e.subpropertyProxyAdded(subpropertyPath) {
+		if e.isSubpropertyProxy(subpropertyPath) {
 			continue
 		}
 		proxy := newProxy(e.ObjValue, subpropertyPath)
@@ -217,7 +226,7 @@ func (e *Element) subpropertyProxySet(bindedPathString string) {
 	}
 }
 
-func (e *Element) subpropertyProxyAdded(subpropertyPath attrPath) bool {
+func (e *Element) isSubpropertyProxy(subpropertyPath attrPath) bool {
 	return subpropertyPath.Get(e.Get("__internal_object__")).Get("__is_proxy__").Bool()
 }
 
@@ -253,8 +262,8 @@ func newMutationObserver(proxy *js.Object, fieldType reflect.Type, attr *js.Obje
 func addInputListener(proxy *js.Object, fieldType reflect.Type, attr *js.Object, path attrPath) {
 	ownerElement := attr.Get("ownerElement")
 	handler := js.MakeFunc(func(this *js.Object, arguments []*js.Object) interface{} {
-		attrName := attr.Get("name").String()
-		path.Set(proxy, ownerElement.Get(attrName))
+		attributeName := attr.Get("name").String()
+		path.Set(proxy, ownerElement.Get(attributeName))
 		return nil
 	})
 	ownerElement.Call("addEventListener", "change", handler)

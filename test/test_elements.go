@@ -4,7 +4,7 @@ import (
 	"github.com/microo8/golymer"
 )
 
-const testElemTemplate = `
+var testElemTemplate = golymer.NewTemplate(`
 <style>
 	:host {
 		display: block;
@@ -35,7 +35,7 @@ const testElemTemplate = `
 	<div id="divAge" value="{{divObject.Age}}">[[divObject.Age]]</div>
 	<div id="divActive" checked="{{divObject.Active}}">[[divObject.Active]]</div>
 </form>
-`
+`)
 
 //TestElem ...
 type TestElem struct {
@@ -95,7 +95,7 @@ func NewTestElem() *TestElem {
 			id: 1,
 		},
 	}
-	elem.Template = testElemTemplate
+	elem.SetTemplate(testElemTemplate)
 	return elem
 }
 
@@ -122,24 +122,26 @@ type TestElemTwo struct {
 	Obj2    *Obj
 }
 
+var testElemTwoTemplate = golymer.NewTemplate(`
+<style>
+	:host {
+		display: [[Display]];
+		background-color: red;
+		width: 10vw;
+		height: 10vh;
+	}
+</style>
+test-elem-two
+<slot></slot>
+`)
+
 //NewTestElemTwo ...
 func NewTestElemTwo() *TestElemTwo {
 	elem := &TestElemTwo{
 		Display: "none",
 		Value:   "foobar",
 	}
-	elem.Template = `
-	<style>
-		:host {
-			display: [[Display]];
-			background-color: red;
-			width: 10vw;
-			height: 10vh;
-		}
-	</style>
-	test-elem-two
-	<slot></slot>
-	`
+	elem.SetTemplate(testElemTwoTemplate)
 	return elem
 }
 

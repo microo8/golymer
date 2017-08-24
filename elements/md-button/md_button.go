@@ -11,7 +11,7 @@ func init() {
 	}
 }
 
-const mdButtonTemplate = `
+var mdButtonTemplate = golymer.NewTemplate(`
 <style>
   :host {
 	display: inline-flex;
@@ -85,7 +85,7 @@ const mdButtonTemplate = `
 </style>
 
 <slot></slot>
-`
+`)
 
 //MdButton implementation of material design button
 type MdButton struct {
@@ -100,6 +100,6 @@ type MdButton struct {
 func NewMdButton() *MdButton {
 	b := new(MdButton)
 	b.Elevation = 1
-	b.Template = mdButtonTemplate
+	b.SetTemplate(mdButtonTemplate)
 	return b
 }
