@@ -41,8 +41,8 @@ var mdButtonTemplate = golymer.NewTemplate(`
   }
   :host([Elevation="1"]) {
 	box-shadow: 0 2px 2px 0 rgba(0, 0, 0, 0.14),
-                    0 1px 5px 0 rgba(0, 0, 0, 0.12),
-                    0 3px 1px -2px rgba(0, 0, 0, 0.2);
+				0 1px 5px 0 rgba(0, 0, 0, 0.12),
+				0 3px 1px -2px rgba(0, 0, 0, 0.2);
   }
   :host([Elevation="2"]) {
 	box-shadow: 0 3px 4px 0 rgba(0, 0, 0, 0.14),
@@ -80,7 +80,6 @@ var mdButtonTemplate = golymer.NewTemplate(`
 	color: #a8a8a8;
 	cursor: auto;
 	pointer-events: none;
-	@apply --md-button-disabled;
   }
 </style>
 
