@@ -28,4 +28,4 @@ var template := golymer.NewTemplate(`
 `)
 ```
 
-![md-button]()
+![md-button](https://raw.githubusercontent.com/microo8/golymer/master/elements/md-button/button.png)
