@@ -3,7 +3,6 @@ package golymer
 import (
 	"reflect"
 	"strconv"
-	"strings"
 
 	"github.com/gopherjs/gopherjs/js"
 )
@@ -17,60 +16,14 @@ type CustomElement interface {
 	DispatchEvent(customEvent *Event)
 }
 
-type oneWayDataBinding struct {
-	str       string
-	attribute *js.Object
-	paths     []string
-}
-
-func (db oneWayDataBinding) setAttr(obj *js.Object) {
-	value := db.str
-	for _, path := range db.paths {
-		fieldValue := newAttrPath(path).Get(obj)
-		value = strings.Replace(value, "[["+path+"]]", fieldValue.String(), -1)
-	}
-	if db.attribute.Get("value") != js.Undefined { //if it's an attribute
-		db.attribute.Set("value", value)
-		//if it is an input node, also set the property
-		if db.attribute.Get("ownerElement").Get("nodeName").String() == "INPUT" {
-			db.attribute.Get("ownerElement").Set(db.attribute.Get("name").String(), value)
-		}
-		return
-	}
-	db.attribute.Set("data", value) //if it's an text node
-}
-
-type twoWayDataBinding struct {
-	attribute        *js.Object
-	setter           func(*js.Object)
-	path             string
-	mutationObserver *js.Object
-}
-
-func (db twoWayDataBinding) setAttr(obj *js.Object) {
-	value := newAttrPath(db.path).Get(obj)
-	if db.attribute != nil {
-		if db.attribute.Get("value").String() == value.String() {
-			return
-		}
-		db.attribute.Set("value", value)
-		//if it is an input node, also set the property
-		if db.attribute.Get("ownerElement").Get("nodeName").String() == "INPUT" {
-			db.attribute.Get("ownerElement").Set(db.attribute.Get("name").String(), value)
-		}
-		return
-	}
-	db.setter(value)
-}
-
 //Element wrapper for the HTML element
 type Element struct {
 	*js.Object
-	ObjValue           reflect.Value //custom element struct type
-	Template           string
-	Children           map[string]*js.Object
-	oneWayDataBindings map[string][]*oneWayDataBinding
-	twoWayDataBindings map[string]*twoWayDataBinding
+	ObjValue reflect.Value //custom element struct type
+	Template string
+	Children map[string]*js.Object
+	oneWay   map[string][]dataBindingSetter
+	twoWay   map[string]dataBindingSetter
 }
 
 //ConnectedCallback called when the element is attached to the DOM
@@ -78,8 +31,8 @@ func (e *Element) ConnectedCallback() {
 	e.Call("attachShadow", map[string]interface{}{"mode": "open"})
 	e.Get("shadowRoot").Set("innerHTML", e.Template)
 	e.Children = make(map[string]*js.Object)
-	e.oneWayDataBindings = make(map[string][]*oneWayDataBinding)
-	e.twoWayDataBindings = make(map[string]*twoWayDataBinding)
+	e.oneWay = make(map[string][]dataBindingSetter)
+	e.twoWay = make(map[string]dataBindingSetter)
 	e.scanElement(e.Get("shadowRoot"))
 	e.initAttributes()
 }
@@ -176,14 +129,14 @@ func (e *Element) addOneWay(obj *js.Object, value string) {
 	bindedPaths := oneWayFindAll(value)
 	for _, bindedPath := range bindedPaths {
 		e.subpropertyProxySet(bindedPath)
-		db := &oneWayDataBinding{str: value, attribute: obj, paths: bindedPaths}
-		e.oneWayDataBindings[bindedPath] = append(e.oneWayDataBindings[bindedPath], db)
+		db := &oneWaySetter{str: value, attribute: obj, paths: bindedPaths}
+		e.oneWay[bindedPath] = append(e.oneWay[bindedPath], db)
 		db.setAttr(e.Object)
 	}
 }
 
 //addTwoWay gets an js Attribute object
-//than finds all data bindings and adds it to the twoWayDataBindings map
+//than finds all data bindings and adds it to the twoWay map
 func (e *Element) addTwoWay(obj *js.Object, value string) {
 	//twoWayDataBinding, obj is attribute DOM object and value is in {{}}
 	if obj.Get("value") == js.Undefined || len(value) < 5 || value[:2] != "{{" || value[len(value)-2:] != "}}" {
@@ -195,10 +148,10 @@ func (e *Element) addTwoWay(obj *js.Object, value string) {
 	if !ok {
 		panic("Error: two way data binding path: " + path + " field doesn't exist")
 	}
-	if _, ok := e.twoWayDataBindings[path]; ok {
+	if _, ok := e.twoWay[path]; ok {
 		panic("data binding " + path + " set more than once")
 	}
-	var db *twoWayDataBinding
+	var db dataBindingSetter
 	switch field.Type.Kind() {
 	case reflect.Ptr, reflect.Struct, reflect.Array, reflect.Slice:
 		subElement := obj.Get("ownerElement").Get("__internal_object__")
@@ -206,18 +159,18 @@ func (e *Element) addTwoWay(obj *js.Object, value string) {
 			panic("cannot set two way data binding for complex data structure on a noncustom element (" + value + ")")
 		}
 		fieldName := toExportedFieldName(obj.Get("name").String())
-		db = &twoWayDataBinding{path: path, setter: func(val *js.Object) {
+		db = &twoWaySetter{path: path, setter: func(val *js.Object) {
 			if subElement.Get(fieldName) != val {
 				subElement.Set(fieldName, val)
 			}
 		}}
-		subDB := &twoWayDataBinding{path: fieldName, setter: func(val *js.Object) {
+		subDB := &twoWaySetter{path: fieldName, setter: func(val *js.Object) {
 			if aPath.Get(e.Get("__internal_object__")) != val {
 				aPath.Set(e.Get("__internal_object__"), val)
 			}
 		}}
-		//dirty subElement twoWayDataBindings setting new path
-		subElement.Get("Element").Get("twoWayDataBindings").Set(
+		//dirty subElement twoWay setting new path
+		subElement.Get("Element").Get("twoWay").Set(
 			"$"+fieldName,
 			map[string]interface{}{"k": fieldName, "v": js.InternalObject(subDB)},
 		)
@@ -227,9 +180,9 @@ func (e *Element) addTwoWay(obj *js.Object, value string) {
 			addInputListener(e.Get("__internal_object__"), field.Type, obj, newAttrPath(path))
 		}
 		mutationObserver := newMutationObserver(e.Get("__internal_object__"), field.Type, obj, path)
-		db = &twoWayDataBinding{attribute: obj, path: path, mutationObserver: mutationObserver}
+		db = &twoWayAttrSetter{attribute: obj, path: path, mutationObserver: mutationObserver}
 	}
-	e.twoWayDataBindings[path] = db
+	e.twoWay[path] = db
 	db.setAttr(e.Object)
 }
 
@@ -351,7 +304,7 @@ func newProxy(customObject reflect.Value, pathPrefix attrPath) (proxy *js.Object
 			}
 			subObj.Set(attributeName, arguments[2])
 			//sets binded attributes of the children in template
-			for p, dbs := range elem.oneWayDataBindings {
+			for p, dbs := range elem.oneWay {
 				oneWayPath := newAttrPath(p)
 				if !oneWayPath.StartsWith(path) {
 					continue
@@ -364,7 +317,7 @@ func newProxy(customObject reflect.Value, pathPrefix attrPath) (proxy *js.Object
 					elem.subpropertyProxySet(p)
 				}
 			}
-			for p, db := range elem.twoWayDataBindings {
+			for p, db := range elem.twoWay {
 				twoWayPath := newAttrPath(p)
 				if !twoWayPath.StartsWith(path) {
 					continue
