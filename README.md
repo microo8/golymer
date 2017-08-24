@@ -116,7 +116,7 @@ HTML element attributes can have just text values, so golymer parses these value
 
 ## template
 
-The function `golymer.NewTemplate` will create a new [template](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/template) element, from which the new custom element's `shadowDOM` will be instantiated. It is better to use the `template` element for this, because, and not `innerHTML`, because the browser must parse the html only once.
+The function `golymer.NewTemplate` will create a new [template](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/template) element, from which the new custom element's `shadowDOM` will be instantiated. It is better to use the `template` element for this, and not `innerHTML`, because the browser must parse the html only once.
 
 If you want to create an custom element with a template, you must set the elements template in the constructor with the `SetTemplate` function.
 
