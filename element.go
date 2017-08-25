@@ -28,14 +28,14 @@ type Element struct {
 
 //ConnectedCallback called when the element is attached to the DOM
 func (e *Element) ConnectedCallback() {
+	e.Children = make(map[string]*js.Object)
+	e.oneWay = make(map[string][]dataBindingSetter)
+	e.twoWay = make(map[string]dataBindingSetter)
 	if e.template != nil {
 		e.Call("attachShadow", map[string]interface{}{"mode": "open"})
 		var jsTemplate *js.Object = e.template
 		clone := jsTemplate.Get("content").Call("cloneNode", true)
 		e.Get("shadowRoot").Call("appendChild", clone)
-		e.Children = make(map[string]*js.Object)
-		e.oneWay = make(map[string][]dataBindingSetter)
-		e.twoWay = make(map[string]dataBindingSetter)
 		e.scanElement(e.Get("shadowRoot"))
 	}
 	e.initAttributes()
@@ -170,7 +170,7 @@ func (e *Element) addTwoWay(obj *js.Object, value string) {
 	}
 	var db dataBindingSetter
 	switch field.Type.Kind() {
-	case reflect.Ptr, reflect.Struct, reflect.Array, reflect.Slice:
+	case reflect.Ptr, reflect.Struct, reflect.Array, reflect.Slice, reflect.Interface:
 		subElement := obj.Get("ownerElement").Get("__internal_object__")
 		if subElement == js.Undefined {
 			panic("cannot set two way data binding for complex data structure on a noncustom element (" + value + ")")
@@ -311,12 +311,11 @@ func newProxy(customObject reflect.Value, pathPrefix attrPath) (proxy *js.Object
 					instance := subObj.Get("Element").Get("Object")
 					setNodeAttribute(field, instance, arguments[2])
 				}
-				if method := customObject.MethodByName("Observer" + attributeName); method.IsValid() {
-					in := []reflect.Value{
-						reflect.ValueOf(subObj.Get(attributeName).Interface()),
-						reflect.ValueOf(arguments[2].Interface()),
-					}
-					method.Call(in)
+				if method := elem.Get("__internal_object__").Get("Observer" + attributeName); method != js.Undefined {
+					method.Call("bind", elem.Get("__internal_object__")).Invoke(
+						subObj.Get(attributeName),
+						arguments[2],
+					)
 				}
 			}
 			subObj.Set(attributeName, arguments[2])
@@ -365,7 +364,7 @@ func setNodeAttribute(field reflect.StructField, node *js.Object, value interfac
 		} else {
 			node.Call("removeAttribute", attributeName)
 		}
-	case reflect.Ptr, reflect.Struct, reflect.Array, reflect.Slice:
+	case reflect.Ptr, reflect.Struct, reflect.Array, reflect.Slice, reflect.Interface:
 		//don't set attribute if it is an complex data structure
 	default:
 		node.Call("setAttribute", attributeName, value)
