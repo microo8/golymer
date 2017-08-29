@@ -69,8 +69,7 @@ func setPrototypeCallbacks(prototype *js.Object) {
 //takes the constructor of the element func()*YourElemType
 //element is registered under the name converted from your element type (YourElemType -> your-elem-type)
 func Define(f interface{}) error {
-	err := testConstructorFunction(f)
-	if err != nil {
+	if err := testConstructorFunction(f); err != nil {
 		return err
 	}
 
@@ -108,7 +107,7 @@ func Define(f interface{}) error {
 			"set": js.MakeFunc(func(this *js.Object, arguments []*js.Object) interface{} {
 				//if the field is exported than the element attribute is also set
 				if field.PkgPath == "" {
-					this.Call("setAttribute", camelCaseToKebab(field.Name), arguments[0])
+					setNodeAttribute(field, this, arguments[0])
 				} else {
 					this.Get("__internal_object__").Set(field.Name, arguments[0])
 				}

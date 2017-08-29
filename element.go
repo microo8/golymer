@@ -48,26 +48,26 @@ func (e *Element) DisconnectedCallback() {
 //AttributeChangedCallback ...
 func (e *Element) AttributeChangedCallback(attributeName string, oldValue string, newValue string, namespace string) {
 	//if attribute didn't change don't set the field
-	if oldValue != newValue {
-		exportedFieldName := toExportedFieldName(attributeName)
-		path := newAttrPath(exportedFieldName)
-		field, ok := path.GetField(e.ObjValue.Elem().Type())
-		//field doesn't exist
-		if !ok {
-			return
-		}
-		if isDataBindingExpression(newValue) {
-			return
-		}
-		convertedValue, err := convertJSType(field.Type, js.InternalObject(newValue))
-		if err != nil {
-			panic("Error converting value in setting the property" +
+	if oldValue == newValue {
+		return
+	}
+	exportedFieldName := toExportedFieldName(attributeName)
+	path := newAttrPath(exportedFieldName)
+	field, ok := path.GetField(e.ObjValue.Elem().Type())
+	//field doesn't exist
+	if !ok || isDataBindingExpression(newValue) {
+		return
+	}
+	convertedValue, err := convertJSType(field.Type, js.InternalObject(newValue))
+	if err != nil {
+		panic(
+			"Error converting value in setting the property" +
 				path.String() +
 				": (" + newValue + ")" +
-				err.Error())
-		}
-		e.Get("__internal_object__").Set(exportedFieldName, convertedValue)
+				err.Error(),
+		)
 	}
+	e.Get("__internal_object__").Set(exportedFieldName, convertedValue)
 }
 
 //AdoptedCallback ...
@@ -206,6 +206,7 @@ func (e *Element) addTwoWay(obj *js.Object, value string) {
 func (e *Element) addEventListener(attr *js.Object) {
 	eventName := attr.Get("name").String()[3:]
 	methodName := attr.Get("value").String()
+	//TODO maybe just find the methon in internal js object
 	method := e.ObjValue.MethodByName(methodName)
 	if !method.IsValid() {
 		panic("Error on event listener " + eventName + " binding, method " + methodName + " doesn't exist")
