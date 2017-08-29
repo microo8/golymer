@@ -100,7 +100,7 @@ func (e *Element) initAttributes() {
 		}
 		field := e.ObjValue.Elem().Field(i)
 		//don't override the data binding
-		if !isDataBindingExpression(e.Call("getAttribute", camelCaseToKebab(fieldType.Name)).String()) {
+		if attrValue := e.Call("getAttribute", camelCaseToKebab(fieldType.Name)).String(); attrValue == "" || attrValue == "null" {
 			setNodeAttribute(fieldType, e.Object, field.Interface())
 		}
 	}
