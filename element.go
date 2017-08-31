@@ -112,16 +112,25 @@ func (e *Element) scanElement(element *js.Object) {
 		for i := 0; i < elementAttributes.Length(); i++ {
 			attribute := elementAttributes.Index(i)
 			attributeName := attribute.Get("name").String()
+			attributeValue := attribute.Get("value").String()
 			if attributeName == "id" {
-				e.Children[attribute.Get("value").String()] = element
+				e.Children[attributeValue] = element
+				field := e.ObjValue.Elem().FieldByName(attributeValue)
+				if !field.IsValid() {
+					continue
+				}
+				if reflect.ValueOf(element.Interface()).Type() != field.Type() {
+					continue
+				}
+				e.Get("__internal_object__").Set(attributeValue, element.Interface())
 				continue
 			}
 			if attributeName[:3] == "on-" {
 				e.addEventListener(attribute)
 				continue
 			}
-			e.addOneWay(attribute, attribute.Get("value").String())
-			e.addTwoWay(attribute, attribute.Get("value").String())
+			e.addOneWay(attribute, attributeValue)
+			e.addTwoWay(attribute, attributeValue)
 		}
 	}
 	//find textChild with data binded value
