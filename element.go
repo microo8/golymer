@@ -119,10 +119,11 @@ func (e *Element) scanElement(element *js.Object) {
 				if !field.IsValid() {
 					continue
 				}
-				if reflect.ValueOf(element.Interface()).Type() != field.Type() {
+				elemType := reflect.ValueOf(element.Interface()).Type()
+				if !elemType.AssignableTo(field.Type()) {
 					continue
 				}
-				e.Get("__internal_object__").Set(attributeValue, element.Interface())
+				e.Get("__internal_object__").Set(attributeValue, element)
 				continue
 			}
 			if attributeName[:3] == "on-" {

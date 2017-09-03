@@ -141,7 +141,7 @@ golymer has build in data bindings. One way data bindings are used for presentin
 <p>[[Text]]!!!</p>
 ```
 
-Where the host struct has an `Text` field. Or the name in brackets can be an path to an fielt `subObject.subSubObject.Field`. The field value este then converted to it's string representation. One way data bindings can be used in text nodes, like in the example above, and also in element attributes eg. `<div style="display: [[MyDisplay]];"></div>`
+Where the host struct has an `Text` field. Or the name in brackets can be an path to an fielt `subObject.subSubObject.Field`. The field value is then converted to it's string representation. One way data bindings can be used in text nodes, like in the example above, and also in element attributes eg. `<div style="display: [[MyDisplay]];"></div>`
 
 Every time the fields value is changed, the template will be automaticaly changed. Changing the `Text` fields value eg `myElem.Text = "foo"` also changes the `<p>` element's `innerHTML`.
 
@@ -153,7 +153,7 @@ Two way data bindings are declared with two curly brackets (`{{Field}}` or `{{su
 <input id="username" name="username" type="text" value="{{Username}}">
 ```
 
-Changing `elem.Username` changes the `input.value`, and also changing the `input.value` or the value attribute `document.getElementById("username").setAttribute("newValue")` or the user adds some text, the `elem.Username` will be also changed.
+Changing `elem.Username` changes the `input.value`, and also changing the `input.value` or the value attribute `document.getElementById("username").setAttribute("value", "newValue")` or the user adds some text, the `elem.Username` will be also changed.
 
 It's also possible to pass complex data structures to the sub element with two way data bindings.
 
@@ -248,6 +248,19 @@ var myTemplate = golymer.NewTemplate(`
 func (e *MyElem) Click(event *golymer.Event) {
 	secondElem := e.Children["second"].Interface().(*MySecondElement)
 	secondElem.DoSomething()
+}
+```
+
+golymer also populates fields of the custom element from the `id`. If the element's `id` is equal to the field name and if it's type is the same as the element in template. eg:
+
+```go
+var tmpl = golymer.NewTemplate(`
+<my-second-element id="second"></my-second-element>
+`)
+
+type MyElem struct {
+	golymer.Element
+	second *MySecondElement //this field will after ConnectedCallback have an pointer to the `<my-second-element>` in the template
 }
 ```
 

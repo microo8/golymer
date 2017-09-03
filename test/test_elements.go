@@ -56,6 +56,7 @@ type TestElem struct {
 	CustomEventDetail     string
 	Obj                   *Obj
 	Obj2                  *Obj
+	two                   *TestElemTwo
 }
 
 //Click ...

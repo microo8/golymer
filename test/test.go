@@ -73,6 +73,9 @@ func TestTypeAssertion(t *testing.T) {
 	if !ok {
 		t.Fatalf("child 'two' DOM node cannot be type-asserted to *TestElemTwo")
 	}
+	if testElem.two == nil {
+		t.Errorf("test-elem didn't populate the two field from id")
+	}
 }
 
 //TestDataBindings tests data bindings on the TestElem
