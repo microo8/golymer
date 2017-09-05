@@ -3,6 +3,8 @@ package golymer
 import (
 	"strings"
 	"unicode"
+
+	"github.com/gopherjs/gopherjs/js"
 )
 
 func kebabToCamelCase(kebab string) (camelCase string) {
@@ -73,29 +75,20 @@ func toExportedFieldName(name string) string {
 	return strings.Title(kebabToCamelCase(name))
 }
 
+var oneWayRegex = js.Global.Get("RegExp").New("\\[\\[([A-Za-z0-9_]+(?:\\.[A-Za-z0-9_]+)*)\\]\\]", "g")
+
 //oneWayFindAll finds all one way data bindings in an string (eg. [[property]])
 func oneWayFindAll(strValue string) (result []string) {
-	value := []rune(strValue)
-	for i := 0; i < len(value); i++ {
-		if value[i] != '[' {
-			continue
-		}
-		if len(value) <= i+1 || value[i+1] != '[' {
-			continue
-		}
-		if len(value) <= i+2 || !unicode.IsLetter(value[i+2]) {
-			continue
-		}
-		for j := i + 3; j < len(value); j++ {
-			if !unicode.IsLetter(value[j]) && !unicode.IsNumber(value[j]) && value[j] != '.' {
-				if value[j] == ']' && len(value) > j+1 && value[j+1] == ']' {
-					result = append(result, string(value[i+2:j]))
-				}
-				break
-			}
-		}
+	matches := js.InternalObject(strValue).Call("match", oneWayRegex)
+	if matches == nil || matches.Length() == 0 {
+		return
 	}
-	return
+	result = make([]string, matches.Length())
+	for i := 0; i < matches.Length(); i++ {
+		m := matches.Index(i).String()
+		result[i] = m[2 : len(m)-2]
+	}
+	return result
 }
 
 // commonInitialisms, taken from
@@ -140,4 +133,6 @@ var commonInitialisms = map[string]bool{
 	"XMPP":  true,
 	"XSRF":  true,
 	"XSS":   true,
+	"JS":    true,
+	"MD":    true,
 }

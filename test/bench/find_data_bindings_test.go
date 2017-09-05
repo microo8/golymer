@@ -15,6 +15,25 @@ const val = "iadbsiabvd ais [[xyz]] asdh asid [[rtsx]] jayhdasb [[asdasdasd.asda
 var oneWayRegex = regexp.MustCompile(`\[\[([A-Za-z0-9_]+(?:\.[A-Za-z0-9_]+)*)\]\]`)
 var oneWayRegexJS = js.Global.Get("RegExp").New("\\[\\[([A-Za-z0-9_]+(?:\\.[A-Za-z0-9_]+)*)\\]\\]", "g")
 
+func oneWayFindAllJS(strValue string) []string {
+	matches := js.InternalObject(strValue).Call("match", oneWayRegexJS)
+	if matches.Length() == 0 {
+		return nil
+	}
+	result := make([]string, matches.Length())
+	for i := 0; i < matches.Length(); i++ {
+		m := matches.Index(i).String()
+		result[i] = m[2 : len(m)-2]
+	}
+	return result
+}
+
+func BenchmarkJS(b *testing.B) {
+	for n := 0; n < b.N; n++ {
+		oneWayFindAllJS(val)
+	}
+}
+
 func BenchmarkRegex(b *testing.B) {
 	for n := 0; n < b.N; n++ {
 		oneWayRegex.FindAllStringSubmatch(val, -1)
