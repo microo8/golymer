@@ -10,6 +10,8 @@ import (
 	"github.com/gopherjs/gopherjs/js"
 )
 
+func main() {}
+
 const val = "iadbsiabvd ais [[xyz]] asdh asid [[rtsx]] jayhdasb [[asdasdasd.asdasd.asd]] uscvbduacbvusa sda fsdai bsdabf sdasdaifu sadif isdabf iksdjafb sadjnf kasnjdfj nsdakfjn skadnf [[sadasisadfbuydb fsudbfsdbhbfdsf]] asdsad sad sad sad sad sad as asjdb  sahdfb sidf bsidfb asib [[Absd.sa234]]"
 
 var oneWayRegex = regexp.MustCompile(`\[\[([A-Za-z0-9_]+(?:\.[A-Za-z0-9_]+)*)\]\]`)
@@ -111,4 +113,166 @@ func BenchmarkBuildIn(b *testing.B) {
 		_ = js.InternalObject(tmpTxt).Call("replace", regExp, "TEST").String()
 	}
 }
-func main() {}
+
+func kebabToCamelCase(kebab string) (camelCase string) {
+	isToUpper := false
+	for _, runeValue := range kebab {
+		if isToUpper {
+			camelCase += strings.ToUpper(string(runeValue))
+			isToUpper = false
+			continue
+		}
+		if runeValue == '-' {
+			isToUpper = true
+		} else {
+			camelCase += string(runeValue)
+		}
+	}
+	return
+}
+
+var kebabRegex = js.Global.Get("RegExp").New("-([a-z])", "g")
+
+func kebabMatch(g *js.Object) *js.Object {
+	return g.Index(1).Call("toUpperCase")
+}
+
+func kebabToCamelCaseJS(kebab string) string {
+	return js.InternalObject(kebab).Call("replace", kebabRegex, kebabMatch).String()
+}
+
+func TestKebabToCamelCase(t *testing.T) {
+	want := kebabToCamelCase("my-awesome-element")
+	got := kebabToCamelCaseJS("my-awesome-element")
+	if want != got {
+		t.Errorf("kebabToCamelCaseJS wrong output: %s", got)
+	}
+}
+func BenchmarkKebabToCamelCase(b *testing.B) {
+	for n := 0; n < b.N; n++ {
+		_ = kebabToCamelCase("my-awesome-element")
+	}
+}
+
+func BenchmarkKebabToCamelCaseJS(b *testing.B) {
+	for n := 0; n < b.N; n++ {
+		_ = kebabToCamelCaseJS("my-awesome-element")
+	}
+}
+
+//string.replace(/([a-z])([A-Z])/g, '$1-$2').toLowerCase();
+var camelRegex = js.Global.Get("RegExp").New("([a-z])([A-Z])", "g")
+
+func camelCaseToKebabJS(s string) string {
+	return js.InternalObject(s).Call("replace", camelRegex, "$1-$2").Call("toLowerCase").String()
+}
+
+func camelCaseToKebab(s string) string {
+	var result string
+	var words []string
+	var lastPos int
+	rs := []rune(s)
+
+	for i := 1; i < len(rs); i++ {
+		if !unicode.IsUpper(rs[i]) {
+			continue
+		}
+		if initialism := startsWithInitialism(s[lastPos:]); initialism != "" {
+			words = append(words, initialism)
+			i += len(initialism) - 1
+			lastPos = i
+			continue
+		}
+		words = append(words, s[lastPos:i])
+		lastPos = i
+	}
+
+	// append the last word
+	if s[lastPos:] != "" {
+		words = append(words, s[lastPos:])
+	}
+
+	for k, word := range words {
+		if k > 0 {
+			result += "-"
+		}
+		result += strings.ToLower(word)
+	}
+
+	return result
+}
+
+// startsWithInitialism returns the initialism if the given string begins with it
+func startsWithInitialism(s string) string {
+	var initialism string
+	// the longest initialism is 5 char, the shortest 2
+	for i := 1; i <= 5; i++ {
+		if len(s) > i-1 && commonInitialisms[s[:i]] {
+			initialism = s[:i]
+		}
+	}
+	return initialism
+}
+
+var commonInitialisms = map[string]bool{
+	"ACL":   true,
+	"API":   true,
+	"ASCII": true,
+	"CPU":   true,
+	"CSS":   true,
+	"DNS":   true,
+	"EOF":   true,
+	"GUID":  true,
+	"HTML":  true,
+	"HTTP":  true,
+	"HTTPS": true,
+	"ID":    true,
+	"IP":    true,
+	"JSON":  true,
+	"LHS":   true,
+	"OS":    true,
+	"QPS":   true,
+	"RAM":   true,
+	"RHS":   true,
+	"RPC":   true,
+	"SLA":   true,
+	"SMTP":  true,
+	"SQL":   true,
+	"SSH":   true,
+	"TCP":   true,
+	"TLS":   true,
+	"TTL":   true,
+	"UDP":   true,
+	"UI":    true,
+	"UID":   true,
+	"UUID":  true,
+	"URI":   true,
+	"URL":   true,
+	"UTF8":  true,
+	"VM":    true,
+	"XML":   true,
+	"XMPP":  true,
+	"XSRF":  true,
+	"XSS":   true,
+	"JS":    true,
+	"MD":    true,
+}
+
+func TestCamelCaseToKebab(t *testing.T) {
+	want := camelCaseToKebab("MyAwesomeElement")
+	got := camelCaseToKebabJS("MyAwesomeElement")
+	if want != got {
+		t.Errorf("camelCaseToKebabJS wrong output: %s", got)
+	}
+}
+func BenchmarkCamelCaseToKebab(b *testing.B) {
+	for n := 0; n < b.N; n++ {
+		_ = camelCaseToKebab("MyAwesomeElement")
+	}
+}
+
+func BenchmarkCamelCaseToKebabJS(b *testing.B) {
+	for n := 0; n < b.N; n++ {
+		_ = camelCaseToKebabJS("MyAwesomeElement")
+	}
+}

@@ -3,7 +3,6 @@ package golymer
 import (
 	"errors"
 	"reflect"
-	"strings"
 
 	"github.com/gopherjs/gopherjs/js"
 )
@@ -22,7 +21,8 @@ func testConstructorFunction(f interface{}) error {
 	if elemStruct, ok := reflect.TypeOf(f).Out(0).Elem().FieldByName("Element"); !ok || elemStruct.Type.Name() != "Element" {
 		return errors.New("Define Error: provided function doesn't return an struct that has embedded golymer.Element struct (it must be func()*YourElemType)")
 	}
-	if !strings.Contains(camelCaseToKebab(reflect.TypeOf(f).Out(0).Elem().Name()), "-") {
+	elementName := camelCaseToKebab(reflect.TypeOf(f).Out(0).Elem().Name())
+	if !js.InternalObject(elementName).Call("includes", "-").Bool() {
 		return errors.New("Define Error: name of the struct type MUST have two words in camel case eg. MyElement will be converted to tag name my-element (it must be func()*YourElemType)")
 	}
 	return nil

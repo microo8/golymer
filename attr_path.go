@@ -2,7 +2,6 @@ package golymer
 
 import (
 	"reflect"
-	"strings"
 
 	"github.com/gopherjs/gopherjs/js"
 )
@@ -12,7 +11,7 @@ import (
 type attrPath []string
 
 func newAttrPath(str string) (path attrPath) {
-	return strings.Split(str, ".")
+	return split(str)
 }
 
 //Get returns the js.Object in the attrPath

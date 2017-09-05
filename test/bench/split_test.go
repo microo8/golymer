@@ -16,8 +16,13 @@ func split(str string) []string {
 }
 
 func jsSplit(str string) (result []string) {
-	for _, s := range js.InternalObject(str).Call("split", ".").Interface().([]interface{}) {
-		result = append(result, s.(string))
+	s := js.InternalObject(str).Call("split", ".")
+	if s.Length() == 0 {
+		return
+	}
+	result = make([]string, s.Length())
+	for i := 0; i < s.Length(); i++ {
+		result[i] = s.Index(i).String()
 	}
 	return
 }
