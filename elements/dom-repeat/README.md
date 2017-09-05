@@ -16,7 +16,7 @@ type UserItem struct {
 //UserDelegate is an element that will be stamped out by the dom-repeat
 type UserDelegate struct {
 	golymer.Element
-	User *Item //the data that will be passed to the Delegate
+	Item *UserItem //the data that will be passed to the Delegate
 }
 
 ...
