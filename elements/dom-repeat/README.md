@@ -16,13 +16,16 @@ type UserItem struct {
 //UserDelegate is an element that will be stamped out by the dom-repeat
 type UserDelegate struct {
 	golymer.Element
-	Item *UserItem //the data that will be passed to the Delegate
+	User *UserItem //the data that will be passed to the Delegate
 }
 
 ...
 
+//the my-elem has just an dom-repeat child, with user-delegate element as the delegate,
+//it passes the UserItems slice to the dom-repeat,
+//and the UserDelegate will reference the data item as 'User' (not the default 'Item')
 var myTemplate = golymer.NewTemplate(`
-<dom-repeat id="repeat" delegate="user-delegate" items="{{UserItems}}"></dom-repeat>
+<dom-repeat id="repeat" delegate="user-delegate" items="{{UserItems}}" item-as="User"></dom-repeat>
 `)
 
 type MyElem struct {
