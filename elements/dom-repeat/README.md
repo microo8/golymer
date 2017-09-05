@@ -35,10 +35,10 @@ type MyElem struct {
 }
 ```
 
-To add new `UserItem`s, just append to the slice `myElem.UserItems = append(myElem.UserItems, newUserItem, anotherUserItem)`, and then you must signalize to the `dom-repeat` element that something has changed, with the `ItemsInterted` method.
+To add new `UserItem`s, just append to the slice `myElem.UserItems = append(myElem.UserItems, newUserItem, anotherUserItem)`, and then you must signalize to the `dom-repeat` element that something has changed, with the `ItemsInserted` method.
 
 ```go
-myElem.repeat.ItemsInterted(len(myElem.UserItems)-2, 2) //the last two rows were inserted
+myElem.repeat.ItemsInserted(len(myElem.UserItems)-2, 2) //the last two rows were inserted
 ```
 
 The same with removing items: `myElem.UserItems = myElem.UserItems[3:]`
