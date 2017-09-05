@@ -123,7 +123,7 @@ func (e *Element) scanElement(element *js.Object) {
 				if !elemType.AssignableTo(field.Type()) {
 					continue
 				}
-				e.Get("__internal_object__").Set(attributeValue, element)
+				e.Get("__internal_object__").Set(attributeValue, element.Get("__internal_object__"))
 				continue
 			}
 			if attributeName[:3] == "on-" {

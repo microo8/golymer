@@ -7,10 +7,6 @@ import (
 	"github.com/microo8/golymer"
 )
 
-//TODO do tests in test.go, like in the main test
-//on InsertAfter and InsertBefore
-//also update README on that id sets the field by id name
-//add README + example screenshot to the DomRepeat
 //thing about better package/elem name because domrepeat.DomRepeat is not great :/
 
 //DomRepeat is an element that stamps and binds objects from an model
@@ -49,8 +45,8 @@ func (dr *DomRepeat) ItemsInserted(row, count int) {
 		panic("DomRepeat Delegate is not set")
 	}
 	list := reflect.ValueOf(dr.Items)
-	for i := row; i < row+count; i++ {
-		item := list.Index(i).Interface()
+	for i := 0; i < count; i++ {
+		item := list.Index(row + i).Interface()
 		domItem := js.Global.Get("document").Call("createElement", dr.Delegate)
 		domItem.Get("__internal_object__").Set(dr.ItemAs, item)
 		shadowRoot := dr.Get("shadowRoot")
@@ -67,8 +63,8 @@ func (dr *DomRepeat) ItemsInserted(row, count int) {
 //ItemsRemoved is a function to indicate to the DomRepeat that the underlying data has changed
 //items where removed, starting on `row` and also the next `count` items
 func (dr *DomRepeat) ItemsRemoved(row, count int) {
-	for i := row; i < row+count; i++ {
-		domItem := dr.Get("shadowRoot").Get("children").Index(i)
+	for i := 0; i < count; i++ {
+		domItem := dr.Get("shadowRoot").Get("children").Index(row)
 		dr.Get("shadowRoot").Call("removeChild", domItem)
 	}
 }

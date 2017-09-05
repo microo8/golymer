@@ -3,13 +3,17 @@ package main
 import (
 	"fmt"
 	"regexp"
+	"strings"
 	"testing"
 	"unicode"
+
+	"github.com/gopherjs/gopherjs/js"
 )
 
 const val = "iadbsiabvd ais [[xyz]] asdh asid [[rtsx]] jayhdasb [[asdasdasd.asdasd.asd]] uscvbduacbvusa sda fsdai bsdabf sdasdaifu sadif isdabf iksdjafb sadjnf kasnjdfj nsdakfjn skadnf [[sadasisadfbuydb fsudbfsdbhbfdsf]] asdsad sad sad sad sad sad as asjdb  sahdfb sidf bsidfb asib [[Absd.sa234]]"
 
 var oneWayRegex = regexp.MustCompile(`\[\[([A-Za-z0-9_]+(?:\.[A-Za-z0-9_]+)*)\]\]`)
+var oneWayRegexJS = js.Global.Get("RegExp").New("\\[\\[([A-Za-z0-9_]+(?:\\.[A-Za-z0-9_]+)*)\\]\\]", "g")
 
 func BenchmarkRegex(b *testing.B) {
 	for n := 0; n < b.N; n++ {
@@ -65,4 +69,27 @@ func TestEqual(t *testing.T) {
 	}
 }
 
+var tmpTxt = "{{abc}} aisdb asidb iasd naisdn asid {{abc}} asidbasi bdias b {{abc}}"
+
+func TestReplace(t *testing.T) {
+	regExp := js.Global.Get("RegExp").New("{{abc}}", "g")
+	if strings.Replace(tmpTxt, "{{abc}}", "TEST", -1) != js.InternalObject(tmpTxt).Call("replace", regExp, "TEST").String() {
+		t.Errorf("replace not equal")
+	}
+}
+
+//BenchmarkStrings benchmarks the strings package Replace function
+func BenchmarkStrings(b *testing.B) {
+	for n := 0; n < b.N; n++ {
+		strings.Replace(tmpTxt, "{{abc}}", "TEST", -1)
+	}
+}
+
+//BenchmarkBuildIn benchmarks the native String.prototype.replace function and conversion back to string
+func BenchmarkBuildIn(b *testing.B) {
+	for n := 0; n < b.N; n++ {
+		regExp := js.Global.Get("RegExp").New("{{abc}}", "g")
+		_ = js.InternalObject(tmpTxt).Call("replace", regExp, "TEST").String()
+	}
+}
 func main() {}

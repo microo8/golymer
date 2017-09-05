@@ -1,8 +1,6 @@
 package golymer
 
 import (
-	"strings"
-
 	"github.com/gopherjs/gopherjs/js"
 )
 
@@ -20,7 +18,8 @@ func (db oneWaySetter) setAttr(obj *js.Object) {
 	value := db.str
 	for _, path := range db.paths {
 		fieldValue := newAttrPath(path).Get(obj)
-		value = strings.Replace(value, "[["+path+"]]", fieldValue.String(), -1)
+		regExp := js.Global.Get("RegExp").New("\\[\\["+path+"\\]\\]", "g")
+		value = js.InternalObject(value).Call("replace", regExp, fieldValue).String()
 	}
 	if db.attribute.Get("value") != js.Undefined { //if it's an attribute
 		db.attribute.Set("value", value)
