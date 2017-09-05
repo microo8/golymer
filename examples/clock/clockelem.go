@@ -1,19 +1,27 @@
 package main
 
 import (
-	"context"
 	"time"
 
 	"github.com/microo8/golymer"
 )
+
+var clockTemplate = golymer.NewTemplate(`
+<style>
+	:host {
+		display: inline;
+		box-shadow: 0 0.018em 0.05em 0;
+		font-size: 7rem;
+	}
+</style>
+[[time]]`)
 
 //FancyClock custom element that shows the current time
 type FancyClock struct {
 	golymer.Element
 	time   string
 	Format string
-	ctx    context.Context
-	cancel context.CancelFunc
+	done   chan struct{}
 }
 
 //ConnectedCallback when the element is connected to the DOM, ticking may begin!
@@ -23,7 +31,7 @@ func (ce *FancyClock) ConnectedCallback() {
 	go func() {
 		for {
 			select {
-			case <-ce.ctx.Done():
+			case <-ce.done:
 				//stops the thicking goroutine
 				return
 			case <-time.Tick(time.Second):
@@ -37,22 +45,14 @@ func (ce *FancyClock) ConnectedCallback() {
 //DisconnectedCallback when the element is removed from the DOM
 //it stops the ticking by sending done to the context
 func (ce *FancyClock) DisconnectedCallback() {
-	ce.cancel()
+	ce.done <- struct{}{}
 }
 
 //NewClockElem creates new clock-elem element
 func NewClockElem() *FancyClock {
 	ce := &FancyClock{Format: time.UnixDate}
-	ce.ctx, ce.cancel = context.WithCancel(context.Background())
-	ce.Template = `
-	<style>
-		:host {
-			display: inline;
-		    box-shadow: 0 0.018em 0.05em 0;
-			font-size: 7rem;
-		}
-	</style>
-	[[time]]`
+	ce.done = make(chan struct{})
+	ce.SetTemplate(clockTemplate)
 	return ce
 }
 
