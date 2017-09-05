@@ -69,22 +69,8 @@ func (dr *DomRepeat) ItemsRemoved(row, count int) {
 	}
 }
 
-//DomItem is the inside element of the DomRepeat
-type DomItem struct {
-	golymer.Element
-	item interface{}
-}
-
-func newDomItem() *DomItem {
-	return new(DomItem)
-}
-
 func init() {
 	err := golymer.Define(newDomRepeat)
-	if err != nil {
-		panic(err)
-	}
-	err = golymer.Define(newDomItem)
 	if err != nil {
 		panic(err)
 	}
