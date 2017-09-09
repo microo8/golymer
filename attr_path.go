@@ -15,8 +15,13 @@ func newAttrPath(str string) (path attrPath) {
 }
 
 //Get returns the js.Object in the attrPath
-func (ap attrPath) Get(obj *js.Object) *js.Object {
-	result := obj
+func (ap attrPath) Get(obj *js.Object) (result *js.Object) {
+	defer func() {
+		if recover() != nil {
+			result = nil
+		}
+	}()
+	result = obj
 	for _, attrName := range ap {
 		val := result.Get(attrName)
 		if val == js.Undefined {
@@ -27,7 +32,7 @@ func (ap attrPath) Get(obj *js.Object) *js.Object {
 		}
 		result = val
 	}
-	return result
+	return
 }
 
 //Set sets the new value to the object attrPath

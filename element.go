@@ -139,6 +139,9 @@ func (e *Element) scanElement(element *js.Object) {
 	}
 	//find textChild with data binded value
 	childNodes := element.Get("childNodes")
+	if childNodes == js.Undefined {
+		childNodes = element.Get("Element").Get("Object").Get("childNodes")
+	}
 	for i := 0; i < childNodes.Length(); i++ {
 		child := childNodes.Index(i)
 		if child.Get("nodeName").String() != "#text" {
@@ -148,6 +151,9 @@ func (e *Element) scanElement(element *js.Object) {
 	}
 	//scan children
 	children := element.Get("children")
+	if children == js.Undefined {
+		children = element.Get("Element").Get("Object").Get("children")
+	}
 	for i := 0; i < children.Length(); i++ {
 		e.scanElement(children.Index(i))
 	}

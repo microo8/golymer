@@ -9,10 +9,10 @@ import (
 )
 
 var testTemplate = golymer.NewTemplate(`
-<dom-switch val="[[page]]">
-	<div id="div1" val="div1">1</div>
-	<div id="div2" val="div2">2</div>
-	<div id="div3" val="div3">3</div>
+<dom-switch expr="[[page]]">
+	<div id="div1" case="div1">1</div>
+	<div id="div2" case="div2">2</div>
+	<div id="div3" case="div3">3</div>
 </dom-switch>
 `)
 
@@ -86,9 +86,9 @@ func TestDomSwitchElement(t *testing.T) {
 }
 
 var testBoolTemplate = golymer.NewTemplate(`
-<dom-switch val="[[active]]">
-	<div id="div1" val="false">1</div>
-	<div id="div2" val="true">2</div>
+<dom-switch expr="[[active]]">
+	<div id="div1" case="false">1</div>
+	<div id="div2" case="true">2</div>
 </dom-switch>
 `)
 

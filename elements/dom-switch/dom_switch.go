@@ -5,21 +5,21 @@ import "github.com/microo8/golymer"
 //DomSwitch shows one of its children if it's Val attribute is equal to childs val attribute
 type DomSwitch struct {
 	golymer.Element
-	Val   string
-	ValAs string
+	Expr   string
+	CaseAs string
 }
 
 func newDomSwitch() *DomSwitch {
 	ds := new(DomSwitch)
-	ds.ValAs = "val"
+	ds.CaseAs = "case"
 	return ds
 }
 
-//ObserverVal shows child by val attribute value
-func (ds *DomSwitch) ObserverVal(oldValue, newValue string) {
+//ObserverExpr shows child by val attribute value
+func (ds *DomSwitch) ObserverExpr(oldValue, newValue string) {
 	for i := 0; i < ds.Get("children").Length(); i++ {
 		child := ds.Get("children").Index(i)
-		attributeValue := child.Call("getAttribute", ds.ValAs).String()
+		attributeValue := child.Call("getAttribute", ds.CaseAs).String()
 		if attributeValue == "null" || attributeValue != newValue {
 			child.Get("style").Set("display", "none")
 			continue
