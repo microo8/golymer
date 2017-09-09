@@ -291,3 +291,15 @@ Or you can use the helper function from golymer:
 ```go
 myElem := golymer.CreateElement("my-elem").(*MyElem)
 ```
+
+# golymer elements
+
+The subpackage [golymer elements](https://github.com/microo8/golymer/tree/master/elements) contains common elemets needed in building websites. 
+
+Like some [material design](https://material.io/) elements and also some common declarative dom manipulation elements.
+
+But it's still an work in progress. The collection isn't complete, but elements that are already complete are functioning and usable.
+
+# SPA
+
+The subpackage [spa](https://github.com/microo8/golymer/tree/master/spa/) contains utils/helpers for building single page applications. 
