@@ -225,18 +225,16 @@ func (e *Element) addTwoWay(obj *js.Object, value string) {
 func (e *Element) addEventListener(attr *js.Object) {
 	eventName := attr.Get("name").String()[3:]
 	methodName := attr.Get("value").String()
-	//TODO maybe just find the methon in internal js object
-	method := e.ObjValue.MethodByName(methodName)
-	if !method.IsValid() {
+	method := e.Get("__internal_object__").Get(methodName)
+	if method == js.Undefined {
 		panic("Error on event listener " + eventName + " binding, method " + methodName + " doesn't exist")
 	}
 	attr.Get("ownerElement").Call(
 		"addEventListener",
 		eventName,
 		js.MakeFunc(func(this *js.Object, arguments []*js.Object) interface{} {
-			event := &Event{Object: arguments[0]}
-			in := []reflect.Value{reflect.ValueOf(event)}
-			method.Call(in)
+			event := &Event{Object: arguments[len(arguments)-1]}
+			method.Call("bind", e.Get("__internal_object__")).Invoke(js.InternalObject(event))
 			return nil
 		}))
 }
