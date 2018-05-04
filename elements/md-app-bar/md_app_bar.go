@@ -14,6 +14,7 @@ var mdAppBarTemplate = golymer.NewTemplate(`
 
 :host {
   position: absolute;
+  contain: content;
   background-color: var(--theme-color-600, #757575);
   box-shadow: var(--theme-shadow-4dp, 0   4px  8px rgba(0,0,0,0.18), 0  4px  8px rgba(0,0,0,0.23));
   color: var(--theme-text-color-0, #ffffff);

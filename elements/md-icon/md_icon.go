@@ -33,10 +33,11 @@ var mdIconTemplate = golymer.NewTemplate(`
 }
 
 :host {
+  contain: content;
   font-family: 'Material Icons';
   font-weight: normal;
   font-style: normal;
-  font-size: 24px;
+  font-size: 1em;
   line-height: 1;
   letter-spacing: normal;
   text-transform: none;
@@ -82,14 +83,10 @@ var mdIconTemplate = golymer.NewTemplate(`
 :host(.square) i { line-height: 48px;} 
 :host(.circle.big) i ,
 :host(.square.big)   i  { line-height: 72px;} 
-
 :host(.reactive):active:after { animation: ce-ripple .4s ease-out; }
-
 :host(.disabled) { color: var(--theme-text-color-400, #b9b9b9); }
-
 :host(.dark-bg) { color: var(--theme-text-color-100, #f5f5f5); }
 :host(.dark-bg).disabled { color: var(--theme-text-color-600, #727272); }
-
 :host(.reactive) { position: relative; }
 :host(.reactive):active    { color: var(--theme-text-color-900, #202020); }
 :host(.reactive):hover     { color: var(--theme-text-color-600, #727272); }
@@ -134,7 +131,7 @@ var mdIconTemplate = golymer.NewTemplate(`
 <i id="icon" class="material-icons"></i>
 `)
 
-//MdIcon is an material design application bar element
+//MdIcon is an material design icon
 type MdIcon struct {
 	golymer.Element
 	IconStyle IconStyle
@@ -148,7 +145,7 @@ func newMdIcon() *MdIcon {
 	return l
 }
 
-//ObserverStyle adds new icon style
+//ObserverIconStyle adds new icon style
 func (i *MdIcon) ObserverIconStyle(old, new string) {
 	if old != "" {
 		i.Get("classList").Call("remove", old)

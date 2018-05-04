@@ -104,8 +104,10 @@ var mdNavItemTemplate = golymer.NewTemplate(`
 }
 :host {
   display: block;
+  contain: content;
   cursor: pointer;
   color: var(--theme-text-color-900, #212121); 
+  background-color: var(--theme-color-0, #fff);
 }
 :host([icon=""]) {
 	padding-left: 40px;
@@ -126,7 +128,7 @@ var mdNavItemTemplate = golymer.NewTemplate(`
   padding: 8px 16px;
 }
 :host(:hover) {
-  background-color: var(--theme-color-200, #eeeeee);
+	opacity: 0.4;
 }
 :host(:active) {
   background-color: var(--theme-color-50, #fafafa);

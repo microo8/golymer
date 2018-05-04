@@ -12,6 +12,8 @@ var mdNavDrawerTestTemplate = golymer.NewTemplate(`
 <style>
 :host {
 	--theme-color-500: coral;
+	--theme-color-200: coral;
+	--theme-color-50: black;
 	--theme-color-0: white;
 	display: block;
 	contain: content;
