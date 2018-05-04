@@ -138,6 +138,16 @@ func Define(f interface{}) error {
 	return nil
 }
 
+//MustDefine registers an new custom element
+//takes the constructor of the element func()*YourElemType
+//element is registered under the name converted from your element type (YourElemType -> your-elem-type)
+//if an error occures it panics
+func MustDefine(f interface{}) {
+	if err := Define(f); err != nil {
+		panic(err)
+	}
+}
+
 //CreateElement creates a new instance of an element that can be type asserted to custom element
 func CreateElement(elementName string) interface{} {
 	return js.Global.Get("document").Call("createElement", elementName).Interface()

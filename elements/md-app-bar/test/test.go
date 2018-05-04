@@ -3,6 +3,7 @@ package main
 import (
 	"github.com/microo8/golymer"
 	"github.com/microo8/golymer/elements/md-app-bar"
+	_ "github.com/microo8/golymer/elements/md-icon"
 )
 
 func main() {}
@@ -19,10 +20,10 @@ var mdAppBarTemplate = golymer.NewTemplate(`
 }
 </style>
 <md-app-bar id="appbar" title="md app bar title">
-<img src="ic_menu_white_24px.svg" slot="nav-icon"/>
-<img src="ic_more_vert_white_24px.svg" slot="icons"/>
-<img src="ic_search_white_24px.svg" slot="icons"/>
-<img src="ic_favorite_white_24px.svg" slot="icons"/>
+<md-icon img="menu" slot="nav-icon"></md-icon>
+<md-icon img="more_vert" slot="icons"></md-icon>
+<md-icon img="search" slot="icons"></md-icon>
+<md-icon img="favorite" slot="icons"></md-icon>
 </md-app-bar>
 `)
 

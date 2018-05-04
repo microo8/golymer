@@ -83,8 +83,5 @@ func newMdAppBar() *MdAppBar {
 }
 
 func init() {
-	err := golymer.Define(newMdAppBar)
-	if err != nil {
-		panic(err)
-	}
+	golymer.MustDefine(newMdAppBar)
 }
