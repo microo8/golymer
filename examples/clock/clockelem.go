@@ -3,6 +3,7 @@ package main
 import (
 	"time"
 
+	"github.com/gopherjs/gopherjs/js"
 	"github.com/microo8/golymer"
 )
 
@@ -58,8 +59,11 @@ func NewClockElem() *FancyClock {
 
 func main() {
 	//define the new fancy-clock elem
-	err := golymer.Define(NewClockElem)
-	if err != nil {
-		panic(err)
-	}
+	js.Global.Get("window").Call("addEventListener", "WebComponentsReady",
+		func() {
+			err := golymer.Define(NewClockElem)
+			if err != nil {
+				panic(err)
+			}
+		})
 }
