@@ -72,6 +72,9 @@ var mdNavDrawerTemplate = golymer.NewTemplate(`
   border: 1px solid #ccc;
   border-width: 0 0 1px 0;
 }
+:host div md-item {
+  user-select: none;
+}
 </style>
 <div><slot></slot></div><span id="blocker"></span>
 `)
@@ -95,72 +98,6 @@ func (nd *MdNavDrawer) ConnectedCallback() {
 	nd.blocker.Call("addEventListener", "click", func() { nd.Visible = !nd.Visible })
 }
 
-var mdNavItemTemplate = golymer.NewTemplate(`
-<style>
-@keyframes ce-ripple {
-  0%   { transform: scale(0); }
-  20%  { transform: scale(1); }
-  100% { opacity: 0; transform: scale(2); }
-}
-:host {
-  display: block;
-  contain: content;
-  cursor: pointer;
-  color: var(--theme-text-color-900, #212121); 
-  background-color: var(--theme-color-0, #fff);
-}
-:host([icon=""]) {
-	padding-left: 40px;
-}
-:host([icon=""]) md-icon {
-	visibility: hidden;
-}
-:host([disabled]),
-:host([disabled]) md-icon,
-:host([disabled]) md-input {
-  color: var(--theme-text-color-500, #9e9e9e);
-  pointer-events: none;
-  cursor: none;
-}
-:host{
-  line-height: 24px;
-  font-size: 14px;
-  padding: 8px 16px;
-}
-:host(:hover) {
-	opacity: 0.4;
-}
-:host(:active) {
-  background-color: var(--theme-color-50, #fafafa);
-}
-:host .md-subheader {
-  color: var(--theme-text-color-500, #9e9e9e);
-}
-:host md-icon {
-  padding-right: 32px;
-  color: var(--theme-text-color-500, #9e9e9e);
-  vertical-align: middle;
-}
-</style>
-<md-icon id="icon" img="[[Icon]]"></md-icon>
-<slot></slot>
-`)
-
-//MdNavItem is an material design item used in navigation drawer
-type MdNavItem struct {
-	golymer.Element
-	Icon     string
-	Active   bool
-	Disanled bool
-}
-
-func newMdNavItem() *MdNavItem {
-	l := new(MdNavItem)
-	l.SetTemplate(mdNavItemTemplate)
-	return l
-}
-
 func init() {
 	golymer.MustDefine(newMdNavDrawer)
-	golymer.MustDefine(newMdNavItem)
 }

@@ -4,6 +4,8 @@ import (
 	"github.com/microo8/golymer"
 	"github.com/microo8/golymer/elements/md-app-bar"
 	_ "github.com/microo8/golymer/elements/md-icon"
+	_ "github.com/microo8/golymer/elements/md-item"
+	mdmenu "github.com/microo8/golymer/elements/md-menu"
 	mdnavdrawer "github.com/microo8/golymer/elements/md-nav-drawer"
 )
 
@@ -29,18 +31,25 @@ var mdAppBarTemplate = golymer.NewTemplate(`
 
 <md-app-bar id="appbar" title="md app bar title">
   <md-icon img="menu" slot="nav-icon" on-click="OpenNavDrawer"></md-icon>
-  <md-icon img="more_vert" slot="icons"></md-icon>
+  <md-icon img="more_vert" slot="icons" on-click="OpenMenu"></md-icon>
   <md-icon img="search" slot="icons"></md-icon>
   <md-icon img="favorite" slot="icons"></md-icon>
 </md-app-bar>
 
+<md-menu id="menu">
+  <md-item icon="favorite">favorite</md-item>
+  <md-item icon="home">home</md-item>
+  <br/>
+  <md-item>close</md-item>
+</md-menu>
+
 <md-nav-drawer id="nav">
-  <md-nav-item icon="account_circle">account</md-nav-item>
-  <md-nav-item icon="explore">explore</md-nav-item>
-  <md-nav-item>meh</md-nav-item>
-  <md-nav-item disabled>diabled meh</md-nav-item>
+  <md-item icon="account_circle">account</md-item>
+  <md-item icon="explore">explore</md-item>
+  <md-item>meh</md-item>
+  <md-item disabled>diabled meh</md-item>
   <hr/>
-  <md-nav-item icon="exit_to_app">exit</md-nav-item>
+  <md-item icon="exit_to_app">exit</md-item>
 </md-nav-drawer>
 
 `)
@@ -50,6 +59,7 @@ type MdAppBarTest struct {
 	golymer.Element
 	appbar *mdappbar.MdAppBar
 	nav    *mdnavdrawer.MdNavDrawer
+	menu   *mdmenu.MdMenu
 }
 
 func newMdAppBarTest() *MdAppBarTest {
@@ -61,6 +71,13 @@ func newMdAppBarTest() *MdAppBarTest {
 //OpenNavDrawer ...
 func (abt *MdAppBarTest) OpenNavDrawer(event *golymer.Event) {
 	abt.nav.Visible = true
+}
+
+//OpenMenu ...
+func (abt *MdAppBarTest) OpenMenu(event *golymer.Event) {
+	println(event.Target)
+	abt.menu.Issuer = event.Target
+	abt.menu.Visible = true
 }
 
 func init() {
