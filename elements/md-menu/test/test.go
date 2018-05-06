@@ -14,6 +14,10 @@ var mdMenuTemplate = golymer.NewTemplate(`
 :host {
 	--theme-text-color-0: black;
 }
+
+#icon2 {
+	float: right;
+}
 </style>
 <md-icon img="more_vert" on-click="OpenMenu">open menu</md-icon>
 <md-menu id="menu">
@@ -23,9 +27,19 @@ var mdMenuTemplate = golymer.NewTemplate(`
   <md-item>close</md-item>
 </md-menu>
 
-<md-icon img="more_vert" on-click="OpenMenu2">open menu</md-icon>
+<md-icon id="icon2" img="more_vert" on-click="OpenMenu2">open menu</md-icon>
 <md-menu id="menu2">
   <md-item icon="menu">menu</md-item>
+  <md-item icon="home">home</md-item>
+  <md-item icon="menu">menu</md-item>
+  <md-item icon="menu">menu</md-item>
+  <md-item icon="menu">menu</md-item>
+  <md-item icon="menu">menu</md-item>
+  <md-item icon="menu">menu</md-item>
+  <md-item icon="home">home</md-item>
+  <md-item icon="home">home</md-item>
+  <md-item icon="home">home</md-item>
+  <md-item icon="home">home</md-item>
   <md-item icon="home">home</md-item>
   <br/>
   <md-item>close</md-item>

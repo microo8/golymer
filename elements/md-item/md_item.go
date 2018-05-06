@@ -1,6 +1,9 @@
 package mditem
 
-import "github.com/microo8/golymer"
+import (
+	"github.com/microo8/golymer"
+	_ "github.com/microo8/golymer/elements/md-icon"
+)
 
 var mdItemTemplate = golymer.NewTemplate(`
 <style>

@@ -24,13 +24,39 @@ var mdMenuTemplate = golymer.NewTemplate(`
 }
 :host(:not([visible])) {
   visibility: hidden;
-  transform-origin: 0px 0px 0px;
 }
 :host([visible]) {
-  display: block;
-  transform-origin: 0px 0px 0px;
-  transform: scaleY(1);
   visibility: visible;
+  animation-name: open;
+  animation-duration: 195ms;
+  animation-timing-function: ease-in;
+  animation-fill-mode: forwards;
+}
+@keyframes open {
+	0% {
+		transform-origin: top center;
+		transform: scaleY(0.1);
+		opacity: 0.1;
+	}
+	100% {
+		transform-origin: top center;
+		transform: scaleY(1);
+		opacity: 1;
+	}
+}
+:host([visible]) ::slotted(*) {
+  animation-name: fadein;
+  animation-duration: 195ms;
+  animation-timing-function: ease-in;
+  animation-fill-mode: forwards;
+}
+@keyframes fadein {
+	0% {
+		opacity: 0;
+	}
+	100% {
+		opacity: 1;
+	}
 }
 :host hr {
   display: block;
@@ -77,6 +103,10 @@ type MdMenu struct {
 func (m *MdMenu) ConnectedCallback() {
 	m.Element.ConnectedCallback()
 	js.Global.Get("document").Call("addEventListener", "click", m.close)
+	children := m.Get("children")
+	for i := 1; i < children.Length(); i++ {
+		children.Index(i).Get("style").Set("animationDelay", strconv.Itoa(50*i)+"ms")
+	}
 }
 
 //ObserverVisible on openning the menu it closes all other menus
@@ -85,13 +115,16 @@ func (m *MdMenu) ObserverVisible(old, new bool) {
 		return
 	}
 	if m.Issuer != nil {
-		bw, bh := getWidthHeight(js.Global.Get("document").Get("body"))
-		mw, mh := getWidthHeight(m.Element.Object)
+		bw := js.Global.Get("window").Get("innerWidth").Int()
+		bh := js.Global.Get("window").Get("innerHeight").Int()
+		mRect := m.Call("getBoundingClientRect")
+		mw, mh := mRect.Get("width").Int(), mRect.Get("height").Int()
 		rect := m.Issuer.Call("getBoundingClientRect")
-		if rect.Get("bottom").Int()+mh < bh {
-			m.Get("style").Set("top", rect.Get("bottom").String()+"px")
+		if rect.Get("top").Int()+mh < bh {
+			m.Get("style").Set("top", rect.Get("top").String()+"px")
 		} else {
-			m.Get("style").Set("bottom", rect.Get("top").String()+"px")
+			top := strconv.Itoa(rect.Get("bottom").Int() - mh)
+			m.Get("style").Set("top", top+"px")
 		}
 		if rect.Get("left").Int()+mw < bw {
 			m.Get("style").Set("left", rect.Get("left").String()+"px")
@@ -121,9 +154,4 @@ func newMdMenu() *MdMenu {
 
 func init() {
 	golymer.MustDefine(newMdMenu)
-}
-
-func getWidthHeight(o *js.Object) (int, int) {
-	rect := o.Call("getBoundingClientRect")
-	return rect.Get("width").Int(), rect.Get("height").Int()
 }
